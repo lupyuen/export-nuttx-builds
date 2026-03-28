@@ -1,0 +1,7 @@
+[package]
+name = "export-nuttx-builds"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+build_html = "2.7.0"
