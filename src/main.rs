@@ -29,7 +29,7 @@ fn main() {
                 let val: u64 = value_reader.read_number().unwrap().unwrap();
                 if val == run_id {
                     index = Some(i);
-                    println!("Found Index: {}", index.unwrap());
+                    println!("Found Index: {i}\n");
                 }
             }
             Ok(())
@@ -57,7 +57,7 @@ fn main() {
     json_reader.transfer_to(&mut json_writer).unwrap();
     json_writer.finish_document().unwrap() ;
     let job_pr = String::from_utf8(writer).unwrap();
-    println!("job_pr: {}", job_pr);
+    println!("job_pr: {}\n", job_pr);
 
     // Merge the Build JSON into the Job-PR JSON
 
@@ -68,14 +68,16 @@ fn main() {
     // Generate the Merged Build JSON for each Run ID
     // Stop iterating when Timestamp is Older than 5 Days
     // Sort by Timestamp in Descending Order (Latest First)
+
     // Write the HTML Table to a Static File
+    let header = ["Timestamp", "PR", "Error / Warning"];
     let source_table = [
         ["2026-04-01T12:00:02", "12345", "MCUBoot.zip unzip failed"],
         ["2026-04-01T12:00:01", "12346", "USE_LEGACY_PINMAP will be deprecated"],
         ["2026-04-01T12:00:00", "12347", "NIMBLE.zip unzip failed"]
     ];
     let html_table = Table::from(source_table)
-        .with_header_row(["Timestamp", "PR", "Error / Warning"])
+        .with_header_row(header)
         .to_html_string();
-    println!("{}", html_table);
+    println!("HTML Table:\n{html_table}");
 }
