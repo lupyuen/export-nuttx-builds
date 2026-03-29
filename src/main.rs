@@ -17,30 +17,40 @@ fn main() {
     println!("{}", html_table);
 
     // Given a Run ID (Job ID): Locate the Job-PR
-    let run_id = 1234;
+    let run_id = 23688473202;
     let json = 
         r#"
         [
-            {"a": true, "b": true},
-            {"a": false, "b": false}
+            {"job_databaseId": 23688473202, "a": true, "b": true},
+            {"job_databaseId": 23688473199, "a": false, "b": false}
         ]
         "#;
     let json_reader = SimpleJsonReader::new(json.as_bytes());
+    // For each Job-PR record in the array...
+    let mut index = Option::<usize>::None;
+    let mut i = 0;
     let return_value = json_reader.read_array_items(|array_reader| {
-        // If the Run ID matches, remember the Found Index
-        // println!("array_reader: {:?}", array_reader);
+        // Fetch the Run ID: {"job_databaseId": 23688473202, ...
         array_reader.read_object_owned_names(|name, value_reader| {            
-            let val = value_reader.read_bool().unwrap();
-            println!("{}: {}", name, val);
+            // If the Run ID matches, remember the Found Index
+            if name == "job_databaseId" {
+                let val: u64 = value_reader.read_number().unwrap().unwrap();
+                println!("{}: {}", name, val);
+                if val == run_id {
+                    index = Some(i);
+                    println!("Found Index: {}", index.unwrap());
+                }
+            }
             Ok(())
         })?;
         println!("Item Done");
+        i += 1;
         Ok(())
     }).unwrap();
     println!("return_value: {:?}", return_value);
 
     // Jump to the Found Index
-    let index = 1;
+    let index = index.unwrap() as u32;
     let mut json_reader = JsonStreamReader::new(json.as_bytes());
     let path = &json_path![index];
     // println!("json_reader before: {:?}\n", json_reader);
