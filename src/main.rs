@@ -10,8 +10,7 @@ use struson::{
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
-    // Iterate Backwards through all Run IDs (Job IDs)
-    // If this Job is not a Build Job: Skip the Job ("name": "Build")
+    // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
     // Generate the Merged Build JSON for each Run ID
     // Stop iterating when Timestamp is Older than 5 Days
     // Sort by Timestamp in Descending Order (Latest First)
