@@ -27,7 +27,7 @@ fn main() {
         "#;
     let json_reader = SimpleJsonReader::new(json.as_bytes());
     let return_value = json_reader.read_array_items(|array_reader| {
-        // If the Run ID matches, remember the Job + PR
+        // If the Run ID matches, remember the Found Index
         // println!("array_reader: {:?}", array_reader);
         array_reader.read_object_owned_names(|name, value_reader| {            
             let val = value_reader.read_bool().unwrap();
@@ -39,7 +39,7 @@ fn main() {
     }).unwrap();
     println!("return_value: {:?}", return_value);
 
-    // Jump to the Found Index and read the Job + PR
+    // Jump to the Found Index
     let index = 1;
     let mut json_reader = JsonStreamReader::new(json.as_bytes());
     let path = &json_path![index];
