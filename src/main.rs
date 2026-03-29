@@ -4,6 +4,9 @@ use struson::{
     reader::{JsonReader, JsonStreamReader, simple::{SimpleJsonReader, ValueReader}}, writer::{JsonStreamWriter, JsonWriter}
 };
 
+/// JSON File that contains the Job-PR records for all NuttX GitHub Jobs
+const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
+
 fn main() {
     println!("export-nuttx-builds");
     let source_table = [
@@ -29,7 +32,7 @@ fn main() {
     // For each Job-PR record in the array...
     let mut index = Option::<usize>::None;
     let mut i = 0;
-    let return_value = json_reader.read_array_items(|array_reader| {
+    json_reader.read_array_items(|array_reader| {
         // Fetch the Run ID: {"job_databaseId": 23688473202, ...
         array_reader.read_object_owned_names(|name, value_reader| {            
             // If the Run ID matches, remember the Found Index
@@ -47,7 +50,6 @@ fn main() {
         i += 1;
         Ok(())
     }).unwrap();
-    println!("return_value: {:?}", return_value);
 
     // Jump to the Found Index
     let index = index.unwrap() as u32;
