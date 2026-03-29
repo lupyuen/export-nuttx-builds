@@ -1,10 +1,6 @@
-use std::thread::sleep;
-
 use build_html::{Html, Table};
 use struson::{
-    json_path,
     reader::{
-        JsonStreamReader, JsonSyntaxError, ReaderError, SyntaxErrorKind, ValueType,
         simple::{SimpleJsonReader, ValueReader},
     },
 };
@@ -29,7 +25,7 @@ fn main() {
         ]
         "#;
     let json_reader = SimpleJsonReader::new(json.as_bytes());
-    let return_value = json_reader.read_array_items(|mut array_reader| {
+    let return_value = json_reader.read_array_items(|array_reader| {
         array_reader.read_object_owned_names(|name, value_reader| {            
             let val = value_reader.read_bool().unwrap();
             println!("{}: {}", name, val);
