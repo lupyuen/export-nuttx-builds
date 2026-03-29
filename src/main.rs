@@ -16,7 +16,7 @@ fn main() {
         .to_html_string();
     println!("{}", html_table);
 
-    // Given a Run ID (Job ID): Locate the Job + PR
+    // Given a Run ID (Job ID): Locate the Job-PR
     let run_id = 1234;
     let json = 
         r#"
@@ -47,7 +47,7 @@ fn main() {
     json_reader.seek_to(path).unwrap();
     // println!("json_reader after: {:?}\n", json_reader);
 
-    // Extract the Job + PR
+    // Extract the Job-PR
     let mut writer = Vec::<u8>::new();
     let mut json_writer = JsonStreamWriter::new(&mut writer);
     // json_writer.begin_object().unwrap();
