@@ -17,20 +17,24 @@ fn main() {
         .to_html_string();
     println!("{}", html_table);
 
+    // Given a Run ID (Job ID): Locate the PR
+    let run_id = 1234;
     let json = 
         r#"
         [
-            {"nested1": true},
-            {"nested2": true}
+            {"a1": true, "a2": false},
+            {"b1": true, "b2": false}
         ]
         "#;
     let json_reader = SimpleJsonReader::new(json.as_bytes());
     let return_value = json_reader.read_array_items(|array_reader| {
+        // If the Run ID matches, remember the PR
         array_reader.read_object_owned_names(|name, value_reader| {            
             let val = value_reader.read_bool().unwrap();
             println!("{}: {}", name, val);
             Ok(())
         })?;
+        println!("Item Done");
         Ok(())
     }).unwrap();
     println!("return_value: {:?}", return_value);
