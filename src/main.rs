@@ -1,20 +1,23 @@
+//! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
 use build_html::{Html, Table};
 use struson::{
     json_path,
-    reader::{JsonReader, JsonStreamReader, simple::{SimpleJsonReader, ValueReader}}, writer::{JsonStreamWriter, JsonWriter}
+    reader::{JsonReader, JsonStreamReader, simple::{SimpleJsonReader, ValueReader}},
+    writer::{JsonStreamWriter, JsonWriter}
 };
 
 /// JSON File that contains the Job-PR records for all NuttX GitHub Jobs
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
-    // TODO: Generate the HTML Table from Merged Build JSON:
     // Iterate Backwards through all Run IDs (Job IDs)
+    // If this Job is not a Build Job: Skip the Job ("name": "Build")
     // Generate the Merged Build JSON for each Run ID
     // Stop iterating when Timestamp is Older than 5 Days
     // Sort by Timestamp in Descending Order (Latest First)
     fetch_job_pr();
 
+    // TODO: Generate the HTML Table from Merged Build JSON:
     // Write the HTML Table to a Static File
     let header = ["Timestamp", "PR", "Error / Warning"];
     let source_table = [
