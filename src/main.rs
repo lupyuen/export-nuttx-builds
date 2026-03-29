@@ -8,17 +8,6 @@ use struson::{
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
-    println!("export-nuttx-builds");
-    let source_table = [
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9]
-    ];
-    let html_table = Table::from(source_table)
-        .with_header_row(['A', 'B', 'C'])
-        .to_html_string();
-    println!("{}", html_table);
-
     // Given a Run ID (Job ID): Locate the Job-PR from the JSON File
     // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
     // let run_id = 23669957941;  // Successful
@@ -51,7 +40,7 @@ fn main() {
 
     // Quit if index not found
     if index.is_none() {
-        println!("Run ID {run_id} not found in {JOB_PR_JSON}");
+        println!("Run ID {run_id} not found in {JOB_PR_JSON}. Please regenerate the JSON File.");
         return;
     }
     let index = index.unwrap() as u32;
@@ -69,4 +58,24 @@ fn main() {
     json_writer.finish_document().unwrap() ;
     let job_pr = String::from_utf8(writer).unwrap();
     println!("job_pr: {}", job_pr);
+
+    // Merge the Build JSON into the Job-PR JSON
+
+    // Write the Merged Build JSON into a file
+
+    // Generate the HTML Table from Merged Build JSON:
+    // Iterate Backwards through all Run IDs (Job IDs)
+    // Generate the Merged Build JSON for each Run ID
+    // Stop iterating when Timestamp is Older than 5 Days
+    // Sort by Timestamp in Descending Order (Latest First)
+    // Write the HTML Table to a Static File
+    let source_table = [
+        ["2026-04-01T12:00:02", "12345", "MCUBoot.zip unzip failed"],
+        ["2026-04-01T12:00:01", "12346", "USE_LEGACY_PINMAP will be deprecated"],
+        ["2026-04-01T12:00:00", "12347", "NIMBLE.zip unzip failed"]
+    ];
+    let html_table = Table::from(source_table)
+        .with_header_row(["Timestamp", "PR", "Error / Warning"])
+        .to_html_string();
+    println!("{}", html_table);
 }
