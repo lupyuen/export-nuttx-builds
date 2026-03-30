@@ -14,64 +14,76 @@ fn main() {
     // Remember the Merged Job-PR-Build JSON for each Run ID
     let mut merged_json_array = Vec::<serde_json::Value>::new();
 
-    // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
-    // Like ../nuttx-github-jobs/error/23712816820
-    let mut entries: Vec<_> = read_dir("../nuttx-github-jobs/error").unwrap().collect();
-    entries.sort_by_key(|entry| entry.as_ref().unwrap().path());
-    for entry in entries.into_iter().rev() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        println!("Found Build Path: {path:?}");
+    // Iterate through the Error and Warning Folders
+    for folder in ["error", "warning"] {
+        let path = format!("../nuttx-github-jobs/{folder}");
+        if !std::path::Path::new(&path).exists() {
+            println!("Folder {path} does not exist. Please parse-nuttx-builds first.");
+            return;
+        }
 
-        // Run ID is the last part of the path: 23712816820
-        let run_id = path.file_name().unwrap().to_str().unwrap();
-        println!("Run ID: {run_id}");
-
-        // For each Run ID (Job ID), Fetch the Job-PR JSON
-        let job_pr = fetch_job_pr(run_id.parse::<u64>().unwrap());
-        let job_pr = match job_pr {
-            Ok(json) => json,
-            Err(e) => {
-                println!("Error fetching Job-PR JSON: {e}");
-                sleep(Duration::from_secs(5));
-                continue;
-            }
-        };
-
-        // Generate the Merged Job-PR-Build JSON for each Run ID:
-        // Iterate through all Build JSON files in the folder
-        // Like ../nuttx-github-jobs/error/23712816820/xtensa-03:lckfb-szpi-esp32s3:uvc.json
-        let entries: Vec<_> = read_dir(&path).unwrap().collect();
-        for entry in entries.into_iter() {
+        // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
+        // Like ../nuttx-github-jobs/error/23712816820
+        let mut entries: Vec<_> = read_dir(&path).unwrap().collect();
+        entries.sort_by_key(|entry| entry.as_ref().unwrap().path());
+        for entry in entries.into_iter().rev() {
             let entry = entry.unwrap();
-            let path = entry.path().to_str().unwrap().to_string();
-            println!("Found Build JSON: {path}");
+            let path = entry.path();
+            println!("Found Build Path: {path:?}");
 
-            // Merge the Build JSON into the Job-PR JSON
-            let merged_json = merge_build_json(&path, &job_pr);
-            let merged_json = match merged_json {
+            // Run ID is the last part of the path: 23712816820
+            let run_id = path.file_name().unwrap().to_str().unwrap();
+            let run_id = run_id.parse::<u64>();
+            let run_id = match run_id {
+                Ok(id) => id,
+                Err(e) => {
+                    println!("Skipping invalid Run ID: {e}");
+                    sleep(Duration::from_secs(1));
+                    continue;
+                }
+            };
+            println!("Run ID: {run_id}");
+
+            // For each Run ID (Job ID), Fetch the Job-PR JSON
+            let job_pr = fetch_job_pr(run_id);
+            let job_pr = match job_pr {
                 Ok(json) => json,
                 Err(e) => {
-                    println!("Error merging Build JSON: {e}");
+                    println!("Error fetching Job-PR JSON: {e}");
                     sleep(Duration::from_secs(5));
                     continue;
                 }
             };
-            println!("merged_json:\n{merged_json}\n");
 
-            // Add the Merged JSON into a JSON Array
-            let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
-            merged_json_array.push(merged_json_value.clone());
+            // Generate the Merged Job-PR-Build JSON for each Run ID:
+            // Iterate through all Build JSON files in the folder
+            // Like ../nuttx-github-jobs/error/23712816820/xtensa-03:lckfb-szpi-esp32s3:uvc.json
+            let entries: Vec<_> = read_dir(&path).unwrap().collect();
+            for entry in entries.into_iter() {
+                let entry = entry.unwrap();
+                let path = entry.path().to_str().unwrap().to_string();
+                println!("Found Build JSON: {path}");
 
-            // TODO: Stop iterating when Timestamp is Older than 5 Days
+                // Merge the Build JSON into the Job-PR JSON
+                let merged_json = merge_build_json(&path, &job_pr);
+                let merged_json = match merged_json {
+                    Ok(json) => json,
+                    Err(e) => {
+                        println!("Error merging Build JSON: {e}");
+                        sleep(Duration::from_secs(5));
+                        continue;
+                    }
+                };
+                println!("merged_json:\n{merged_json}\n");
+
+                // Add the Merged JSON into a JSON Array
+                let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
+                merged_json_array.push(merged_json_value.clone());
+
+                // TODO: Stop iterating when Timestamp is Older than 5 Days
+            }
         }
     }
-
-    // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
-    // let run_id = 23669957941;  // Successful
-    // let run_id = 23679432579;  // Test Retry
-    // let run_id = 1234;  // Doesn't exist
-    // let run_id = 23615674204; let build_json_path = "../nuttx-github-jobs/error/23615674204/xtensa-01:heltec_wifi_lora32:sx1276.json";  // Compile Error
 
     // Sort the JSON Array by Timestamp in Descending Order (Latest First)
     merged_json_array.sort_by(|a, b| {
@@ -85,7 +97,13 @@ fn main() {
     std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
 
     // Generate the HTML Table from Merged Job-PR-Build JSON
-    let header = ["Timestamp", "PR", "Board / Config", "Error / Warning"];
+    let now = &chrono::Utc::now().to_rfc3339()[..19];
+    let header = [
+        "Timestamp", 
+        "PR", 
+        "Board / Config", 
+        &format!("Error / Warning (Updated {now})")
+    ];
     let mut table = Table::new()
         .with_attributes([("class", "table")])
         .with_header_row(header);
@@ -98,9 +116,14 @@ fn main() {
         let config = build_job_pr["build_config"].as_str().unwrap_or_default();
         let msg = build_job_pr["build_msg"].as_str().unwrap_or_default();
         let build_url = build_job_pr["build_url"].as_str().unwrap_or_default();
+        let score = build_job_pr["build_score"].as_f64().unwrap_or_default();
 
         let mut pr_title = pr_title.to_string();
         pr_title.truncate(50);
+        let error_warning = 
+            if score == 0.0 { "info" }
+            else if score == 1.0 { "error" }
+            else { "warning" };
 
         let row = TableRow::new()
             .with_attributes([("class", "row")])
@@ -117,7 +140,7 @@ fn main() {
                 .with_raw(format!("{board}<br>:{config}"))
             )
             .with_cell(TableCell::default()
-                .with_attributes([("class", "error-warning")])
+                .with_attributes([("class", error_warning)])
                 .with_link(build_url, msg.to_owned() + "<br><br>")
             );
         table.add_custom_body_row(row);
