@@ -15,8 +15,13 @@ fn main() {
     // Stop iterating when Timestamp is Older than 5 Days
     // Sort by Timestamp in Descending Order (Latest First)
 
+    // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
+    // let run_id = 23669957941;  // Successful
+    let run_id = 23679432579;  // Test Retry
+    // let run_id = 1234;  // Doesn't exist
+
     // For each Run ID (Job ID), Fetch the Job-PR JSON
-    let job_pr = fetch_job_pr();
+    let job_pr = fetch_job_pr(run_id);
     println!("job_pr:\n{job_pr:?}\n");
 
     // TODO: Merge the Build JSON into the Job-PR JSON
@@ -35,15 +40,9 @@ fn main() {
     println!("HTML Table:\n{html_table}");
 }
 
-// Fetch the Job-PR JSON for a Given Run ID (Job ID)
-fn fetch_job_pr() -> Result<String, Box<dyn std::error::Error>> {
-    // Given a Run ID (Job ID): Locate the Job-PR from the JSON File
-    // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
-    // let run_id = 23669957941;  // Successful
-    let run_id = 23679432579;  // Test Retry
-    // let run_id = 1234;  // Doesn't exist
-
-    // Open the JSON File and create a Streaming JSON Reader
+/// Fetch the Job-PR JSON for a Given Run ID (Job ID)
+fn fetch_job_pr(run_id: u64) -> Result<String, Box<dyn std::error::Error>> {
+    // Open the Job-PR JSON File and create a Streaming JSON Reader
     let file = std::fs::read(JOB_PR_JSON)?;
     let json_reader = SimpleJsonReader::new(file.as_slice());
 
