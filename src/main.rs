@@ -51,38 +51,55 @@ fn main() {
     merged_json_array.push(merged_json_value.clone());
     merged_json_array.push(merged_json_value.clone()); //// TODO
 
-    // Generate the HTML Table from Merged Job-PR-Build JSON:
-    let header = ["Timestamp", "PR", "Error / Warning"];
-    // let source_table = [
-    //     ["2026-04-01T12:00:02", "12345", "MCUBoot.zip unzip failed"],
-    //     ["2026-04-01T12:00:01", "12346", "USE_LEGACY_PINMAP will be deprecated"],
-    //     ["2026-04-01T12:00:00", "12347", "NIMBLE.zip unzip failed"]
-    // ];
-    // let html_table = Table::from(source_table)
-    //     .with_header_row(header)
-    //     .to_html_string();
+    // Sort the JSON Array by Timestamp in Descending Order (Latest First)
+    merged_json_array.sort_by(|a, b| {
+        let a_timestamp = a["build_timestamp"].as_str().unwrap_or_default();
+        let b_timestamp = b["build_timestamp"].as_str().unwrap_or_default();
+        b_timestamp.cmp(a_timestamp)
+    });
 
+    // Generate the HTML Table from Merged Job-PR-Build JSON:
+    let header = ["Timestamp", "PR", "Board / Config", "Error / Warning"];
     let mut table = Table::new()
         .with_header_row(header);
     for build_job_pr in merged_json_array {
         let timestamp = build_job_pr["build_timestamp"].as_str().unwrap_or_default();
         let pr = build_job_pr["pr_number"].as_u64().map(|n| n.to_string()).unwrap_or_default();
-        let error_warning = build_job_pr["build_error_warning"].as_str().unwrap_or_default();
+        let pr_url = build_job_pr["pr_url"].as_str().unwrap_or_default();
+        let pr_title = build_job_pr["pr_title"].as_str().unwrap_or_default();
+        let board = build_job_pr["build_board"].as_str().unwrap_or_default();
+        let config = build_job_pr["build_config"].as_str().unwrap_or_default();
+        let msg = build_job_pr["build_msg"].as_str().unwrap_or_default();
+        let build_url = build_job_pr["build_url"].as_str().unwrap_or_default();
+
+        let mut pr_title = pr_title.to_string();
+        pr_title.truncate(50);
+
         let row = TableRow::new()
             .with_attributes([("class", "row")])
-            .with_cell(TableCell::default().with_raw(timestamp))
-            .with_cell(TableCell::default().with_raw(pr))
-            .with_cell(
-                TableCell::default()
-                    .with_attributes([("class", "error-warning")])
-                    .with_raw(error_warning)
+            .with_cell(TableCell::default()
+                .with_attributes([("class", "timestamp")])
+                .with_raw(timestamp)
+            )
+            .with_cell(TableCell::default()
+                .with_attributes([("class", "pr")])
+                .with_link(pr_url, format!("{pr}: {pr_title}"))
+            )
+            .with_cell(TableCell::default()
+                .with_attributes([("class", "board-config")])
+                .with_raw(format!("{board}:{config}"))
+            )
+            .with_cell(TableCell::default()
+                .with_attributes([("class", "error-warning")])
+                .with_link(build_url, msg)
             );
-        table = table.with_custom_body_row(row);
+        table.add_custom_body_row(row);
     }
     let html = table.to_html_string();
     println!("html:\n{html}");
 
-    // TODO: Write the HTML Table to a Static File
+    // Write the HTML Table to a Static File
+    std::fs::write("/tmp/output.html", html).unwrap()
 }
 
 /// Fetch the Job-PR JSON for a Given Run ID (Job ID)
