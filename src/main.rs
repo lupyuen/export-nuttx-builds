@@ -58,9 +58,10 @@ fn main() {
         b_timestamp.cmp(a_timestamp)
     });
 
-    // Generate the HTML Table from Merged Job-PR-Build JSON:
+    // Generate the HTML Table from Merged Job-PR-Build JSON
     let header = ["Timestamp", "PR", "Board / Config", "Error / Warning"];
     let mut table = Table::new()
+        .with_attributes([("class", "table")])
         .with_header_row(header);
     for build_job_pr in merged_json_array {
         let timestamp = build_job_pr["build_timestamp"].as_str().unwrap_or_default();
@@ -91,7 +92,7 @@ fn main() {
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", "error-warning")])
-                .with_link(build_url, msg)
+                .with_link(build_url, msg.to_owned() + "<br><br>")
             );
         table.add_custom_body_row(row);
     }
