@@ -1,5 +1,5 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
-use std::{thread::sleep, time::Duration};
+use std::{fs::read_dir, thread::sleep, time::Duration};
 use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
 use struson::{
     json_path,
@@ -11,45 +11,67 @@ use struson::{
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
+    // Remember the Merged Job-PR-Build JSON for each Run ID
+    let mut merged_json_array = Vec::<serde_json::Value>::new();
+
     // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
-    // Generate the Merged Job-PR-Build JSON for each Run ID
-    // Stop iterating when Timestamp is Older than 5 Days
-    // Sort by Timestamp in Descending Order (Latest First)
+    // Like ../nuttx-github-jobs/error/23712816820
+    let mut entries: Vec<_> = read_dir("../nuttx-github-jobs/error").unwrap().collect();
+    entries.sort_by_key(|entry| entry.as_ref().unwrap().path());
+    for entry in entries.into_iter().rev() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        println!("Found Build Path: {path:?}");
+
+        // Run ID is the last part of the path: 23712816820
+        let run_id = path.file_name().unwrap().to_str().unwrap();
+        println!("Run ID: {run_id}");
+
+        // For each Run ID (Job ID), Fetch the Job-PR JSON
+        let job_pr = fetch_job_pr(run_id.parse::<u64>().unwrap());
+        let job_pr = match job_pr {
+            Ok(json) => json,
+            Err(e) => {
+                println!("Error fetching Job-PR JSON: {e}");
+                sleep(Duration::from_secs(5));
+                continue;
+            }
+        };
+
+        // Generate the Merged Job-PR-Build JSON for each Run ID:
+        // Iterate through all Build JSON files in the folder
+        // Like ../nuttx-github-jobs/error/23712816820/xtensa-03:lckfb-szpi-esp32s3:uvc.json
+        let entries: Vec<_> = read_dir(&path).unwrap().collect();
+        for entry in entries.into_iter() {
+            let entry = entry.unwrap();
+            let path = entry.path().to_str().unwrap().to_string();
+            println!("Found Build JSON: {path}");
+
+            // Merge the Build JSON into the Job-PR JSON
+            let merged_json = merge_build_json(&path, &job_pr);
+            let merged_json = match merged_json {
+                Ok(json) => json,
+                Err(e) => {
+                    println!("Error merging Build JSON: {e}");
+                    sleep(Duration::from_secs(5));
+                    continue;
+                }
+            };
+            println!("merged_json:\n{merged_json}\n");
+
+            // Add the Merged JSON into a JSON Array
+            let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
+            merged_json_array.push(merged_json_value.clone());
+
+            // TODO: Stop iterating when Timestamp is Older than 5 Days
+        }
+    }
 
     // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
     // let run_id = 23669957941;  // Successful
     // let run_id = 23679432579;  // Test Retry
     // let run_id = 1234;  // Doesn't exist
-    let run_id = 23615674204; let build_json_path = "../nuttx-github-jobs/error/23615674204/xtensa-01:heltec_wifi_lora32:sx1276.json";  // Compile Error
-
-    // For each Run ID (Job ID), Fetch the Job-PR JSON
-    let job_pr = fetch_job_pr(run_id);
-    let job_pr = match job_pr {
-        Ok(json) => json,
-        Err(e) => {
-            println!("Error fetching Job-PR JSON: {e}");
-            sleep(Duration::from_secs(5));
-            return;
-        }
-    };
-
-    // Merge the Build JSON into the Job-PR JSON
-    let merged_json = merge_build_json(build_json_path, &job_pr);
-    let merged_json = match merged_json {
-        Ok(json) => json,
-        Err(e) => {
-            println!("Error merging Build JSON: {e}");
-            sleep(Duration::from_secs(5));
-            return;
-        }
-    };
-    println!("merged_json:\n{merged_json}\n");
-
-    // Add the Merged JSON into a JSON Array
-    let mut merged_json_array = Vec::<serde_json::Value>::new();
-    let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
-    merged_json_array.push(merged_json_value.clone());
-    merged_json_array.push(merged_json_value.clone()); //// TODO
+    // let run_id = 23615674204; let build_json_path = "../nuttx-github-jobs/error/23615674204/xtensa-01:heltec_wifi_lora32:sx1276.json";  // Compile Error
 
     // Sort the JSON Array by Timestamp in Descending Order (Latest First)
     merged_json_array.sort_by(|a, b| {
@@ -60,7 +82,7 @@ fn main() {
 
     // Write the JSON Array to a file
     let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
-    std::fs::write("/tmp/merged.json", merged_json_array_str).unwrap();
+    std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
 
     // Generate the HTML Table from Merged Job-PR-Build JSON
     let header = ["Timestamp", "PR", "Board / Config", "Error / Warning"];
@@ -92,7 +114,7 @@ fn main() {
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", "board-config")])
-                .with_raw(format!("{board}:{config}"))
+                .with_raw(format!("{board}<br>:{config}"))
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", "error-warning")])
@@ -104,7 +126,7 @@ fn main() {
     println!("html:\n{html}");
 
     // Write the HTML Table to a Static File
-    std::fs::write("/tmp/output.html", html).unwrap()
+    std::fs::write("../nuttx-github-jobs/build-monitor.html", html).unwrap()
 }
 
 /// Fetch the Job-PR JSON for a Given Run ID (Job ID)
