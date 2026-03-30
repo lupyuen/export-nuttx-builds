@@ -89,6 +89,9 @@ fn fetch_job_pr() -> Result<String, Box<dyn std::error::Error>> {
     json_writer.finish_document()?;
     let job_pr = String::from_utf8(writer)?;
 
-    println!("job_pr:\n{job_pr}\n");
-    Ok(job_pr)
+    // Validate the Job-PR JSON with Serde
+    let job_pr2: serde_json::Value = serde_json::from_str(&job_pr)?;
+    let job_pr3 = serde_json::to_string_pretty(&job_pr2)?;
+    println!("job_pr:\n{job_pr3}\n");
+    Ok(job_pr3)
 }
