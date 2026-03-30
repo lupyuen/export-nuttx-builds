@@ -33,7 +33,6 @@ fn main() {
             return;
         }
     };
-    println!("job_pr:\n{job_pr:?}\n");
 
     // Merge the Build JSON into the Job-PR JSON
     let merged_json = merge_build_json(build_json_path, &job_pr);
@@ -112,7 +111,6 @@ fn fetch_job_pr(run_id: u64) -> Result<String, Box<dyn std::error::Error>> {
     // Validate the Job-PR JSON with Serde
     let job_pr2: serde_json::Value = serde_json::from_str(&job_pr)?;
     let job_pr3 = serde_json::to_string_pretty(&job_pr2)?;
-    println!("job_pr:\n{job_pr3}\n");
     Ok(job_pr3)
 }
 
