@@ -1,4 +1,6 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
+use std::thread::sleep;
+
 use build_html::{Html, Table};
 use struson::{
     json_path,
@@ -17,14 +19,33 @@ fn main() {
 
     // let run_id = 23653869993;  // sim-02:sim:login: >>>> WARNING: YOU ARE USING DEFAULT PASSWORD KEYS (CONFIG_FSUTILS_PASSWD_KEY1-4)!!! PLEASE CHANGE IT!!! <<<< \n 17d16 \n < CONFIG_BOARD_ETC_ROMFS_PASSWD_PASSWORD=\"Administrator\" \n Saving the new configuration file
     // let run_id = 23669957941;  // Successful
-    let run_id = 23679432579;  // Test Retry
+    // let run_id = 23679432579;  // Test Retry
     // let run_id = 1234;  // Doesn't exist
+    let run_id = 23615674204; let build_json_path = "../nuttx-github-jobs/error/23615674204/xtensa-01:heltec_wifi_lora32:sx1276.json";  // Compile Error
 
     // For each Run ID (Job ID), Fetch the Job-PR JSON
     let job_pr = fetch_job_pr(run_id);
+    let job_pr = match job_pr {
+        Ok(json) => json,
+        Err(e) => {
+            println!("Error fetching Job-PR JSON: {e}");
+            sleep(std::time::Duration::from_secs(5));
+            return;
+        }
+    };
     println!("job_pr:\n{job_pr:?}\n");
 
-    // TODO: Merge the Build JSON into the Job-PR JSON
+    // Merge the Build JSON into the Job-PR JSON
+    let merged_json = merge_build_json(build_json_path, &job_pr);
+    let merged_json = match merged_json {
+        Ok(json) => json,
+        Err(e) => {
+            println!("Error merging Build JSON: {e}");
+            sleep(std::time::Duration::from_secs(5));
+            return;
+        }
+    };
+    println!("merged_json:\n{merged_json}\n");
 
     // TODO: Generate the HTML Table from Merged Job-PR-Build JSON:
     // Write the HTML Table to a Static File
@@ -93,4 +114,24 @@ fn fetch_job_pr(run_id: u64) -> Result<String, Box<dyn std::error::Error>> {
     let job_pr3 = serde_json::to_string_pretty(&job_pr2)?;
     println!("job_pr:\n{job_pr3}\n");
     Ok(job_pr3)
+}
+
+/// Merge the Build JSON into the Job-PR JSON for a Given Run ID (Job ID)
+fn merge_build_json(build_json_path: &str, job_pr: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let build_json = std::fs::read_to_string(build_json_path)?;
+    let mut job_pr_value: serde_json::Value = serde_json::from_str(job_pr)?;
+    let build_value: serde_json::Value = serde_json::from_str(&build_json)?;
+
+    // Merge the Build JSON into the Job-PR JSON
+    if let serde_json::Value::Object(ref mut job_pr_map) = job_pr_value {
+        if let serde_json::Value::Object(build_map) = build_value {
+            for (key, value) in build_map {
+                let key = format!("build_{key}")
+                    .replace("build_build_", "build_");
+                job_pr_map.insert(key, value);
+            }
+        }
+    }
+    let merged_json = serde_json::to_string_pretty(&job_pr_value)?;
+    Ok(merged_json)
 }
