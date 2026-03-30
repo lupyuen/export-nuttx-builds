@@ -1,7 +1,6 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
-use std::thread::sleep;
-
-use build_html::{Html, Table};
+use std::{thread::sleep, time::Duration};
+use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
 use struson::{
     json_path,
     reader::{JsonReader, JsonStreamReader, simple::{SimpleJsonReader, ValueReader}},
@@ -29,7 +28,7 @@ fn main() {
         Ok(json) => json,
         Err(e) => {
             println!("Error fetching Job-PR JSON: {e}");
-            sleep(std::time::Duration::from_secs(5));
+            sleep(Duration::from_secs(5));
             return;
         }
     };
@@ -40,24 +39,50 @@ fn main() {
         Ok(json) => json,
         Err(e) => {
             println!("Error merging Build JSON: {e}");
-            sleep(std::time::Duration::from_secs(5));
+            sleep(Duration::from_secs(5));
             return;
         }
     };
     println!("merged_json:\n{merged_json}\n");
 
-    // TODO: Generate the HTML Table from Merged Job-PR-Build JSON:
-    // Write the HTML Table to a Static File
+    // Add the Merged JSON into a JSON Array
+    let mut merged_json_array = Vec::<serde_json::Value>::new();
+    let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
+    merged_json_array.push(merged_json_value.clone());
+    merged_json_array.push(merged_json_value.clone()); //// TODO
+
+    // Generate the HTML Table from Merged Job-PR-Build JSON:
     let header = ["Timestamp", "PR", "Error / Warning"];
-    let source_table = [
-        ["2026-04-01T12:00:02", "12345", "MCUBoot.zip unzip failed"],
-        ["2026-04-01T12:00:01", "12346", "USE_LEGACY_PINMAP will be deprecated"],
-        ["2026-04-01T12:00:00", "12347", "NIMBLE.zip unzip failed"]
-    ];
-    let html_table = Table::from(source_table)
-        .with_header_row(header)
-        .to_html_string();
-    println!("HTML Table:\n{html_table}");
+    // let source_table = [
+    //     ["2026-04-01T12:00:02", "12345", "MCUBoot.zip unzip failed"],
+    //     ["2026-04-01T12:00:01", "12346", "USE_LEGACY_PINMAP will be deprecated"],
+    //     ["2026-04-01T12:00:00", "12347", "NIMBLE.zip unzip failed"]
+    // ];
+    // let html_table = Table::from(source_table)
+    //     .with_header_row(header)
+    //     .to_html_string();
+
+    let mut table = Table::new()
+        .with_header_row(header);
+    for build_job_pr in merged_json_array {
+        let timestamp = build_job_pr["build_timestamp"].as_str().unwrap_or_default();
+        let pr = build_job_pr["pr_number"].as_u64().map(|n| n.to_string()).unwrap_or_default();
+        let error_warning = build_job_pr["build_error_warning"].as_str().unwrap_or_default();
+        let row = TableRow::new()
+            .with_attributes([("class", "row")])
+            .with_cell(TableCell::default().with_raw(timestamp))
+            .with_cell(TableCell::default().with_raw(pr))
+            .with_cell(
+                TableCell::default()
+                    .with_attributes([("class", "error-warning")])
+                    .with_raw(error_warning)
+            );
+        table = table.with_custom_body_row(row);
+    }
+    let html = table.to_html_string();
+    println!("html:\n{html}");
+
+    // TODO: Write the HTML Table to a Static File
 }
 
 /// Fetch the Job-PR JSON for a Given Run ID (Job ID)
