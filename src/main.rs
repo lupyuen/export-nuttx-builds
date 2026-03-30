@@ -1,4 +1,5 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
+use core::time;
 use std::{fs::read_dir, thread::sleep, time::Duration};
 use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
 use struson::{
@@ -120,6 +121,7 @@ fn main() {
 
         let mut pr_title = pr_title.to_string();
         pr_title.truncate(50);
+        let timestamp = timestamp.replace("T", "<br>T");
         let error_warning = 
             if score == 0.0 { "info" }
             else if score == 1.0 { "error" }
