@@ -11,7 +11,7 @@ const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
     // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
-    // Generate the Merged Build JSON for each Run ID
+    // Generate the Merged Job-PR-Build JSON for each Run ID
     // Stop iterating when Timestamp is Older than 5 Days
     // Sort by Timestamp in Descending Order (Latest First)
 
@@ -19,9 +19,9 @@ fn main() {
     let job_pr = fetch_job_pr();
     println!("job_pr:\n{job_pr:?}\n");
 
-    // TODO: Merge the Build JSON into the Job-PR JSON    
+    // TODO: Merge the Build JSON into the Job-PR JSON
 
-    // TODO: Generate the HTML Table from Merged Build JSON:
+    // TODO: Generate the HTML Table from Merged Job-PR-Build JSON:
     // Write the HTML Table to a Static File
     let header = ["Timestamp", "PR", "Error / Warning"];
     let source_table = [
