@@ -52,15 +52,17 @@ fn fetch_job_pr() {
             if name == "job_databaseId" {
                 let val: u64 = value_reader.read_number().unwrap().unwrap();
                 if val == run_id {
+                    // We simulate an Error to quit early
                     index = Some(i);
                     println!("Found Job-PR Index: {i}\n");
+                    return Err(format!("{i}").to_string().into());
                 }
             }
             Ok(())
         })?;
         i += 1;
         Ok(())
-    }).unwrap();
+    }).unwrap_or_default();
 
     // Quit if index not found
     if index.is_none() {
