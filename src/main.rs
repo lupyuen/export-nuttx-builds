@@ -58,6 +58,10 @@ fn main() {
         b_timestamp.cmp(a_timestamp)
     });
 
+    // Write the JSON Array to a file
+    let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
+    std::fs::write("/tmp/merged.json", merged_json_array_str).unwrap();
+
     // Generate the HTML Table from Merged Job-PR-Build JSON
     let header = ["Timestamp", "PR", "Board / Config", "Error / Warning"];
     let mut table = Table::new()
