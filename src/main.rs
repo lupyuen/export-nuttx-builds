@@ -1,5 +1,4 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
-use core::time;
 use std::{fs::read_dir, thread::sleep, time::Duration};
 use build_html::{Html, HtmlContainer, Table, TableCell, TableCellType, TableRow};
 use struson::{
@@ -282,13 +281,12 @@ fn merge_build_json(build_json_path: &str, job_pr: &str) -> Result<String, Box<d
     let build_value: serde_json::Value = serde_json::from_str(&build_json)?;
 
     // Merge the Build JSON into the Job-PR JSON
-    if let serde_json::Value::Object(ref mut job_pr_map) = job_pr_value {
-        if let serde_json::Value::Object(build_map) = build_value {
-            for (key, value) in build_map {
-                let key = format!("build_{key}")
-                    .replace("build_build_", "build_");
-                job_pr_map.insert(key, value);
-            }
+    if let serde_json::Value::Object(ref mut job_pr_map) = job_pr_value
+        && let serde_json::Value::Object(build_map) = build_value {
+        for (key, value) in build_map {
+            let key = format!("build_{key}")
+                .replace("build_build_", "build_");
+            job_pr_map.insert(key, value);
         }
     }
     let merged_json = serde_json::to_string_pretty(&job_pr_value)?;
