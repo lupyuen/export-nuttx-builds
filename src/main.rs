@@ -122,6 +122,8 @@ fn main() {
             )
         .with_tbody_attributes([("class", "divide-y divide-gray-100")]);
 
+    // For every Merged Job-PR-Build...
+    let mut prev_msg = None::<String>;
     for build_job_pr in merged_json_array {
         let timestamp = build_job_pr["build_timestamp"].as_str().unwrap_or_default();
         let pr = build_job_pr["pr_number"].as_u64().map(|n| n.to_string()).unwrap_or_default();
@@ -132,10 +134,20 @@ fn main() {
         let msg = build_job_pr["build_msg"].as_str().unwrap_or_default();
         let build_url = build_job_pr["build_url"].as_str().unwrap_or_default();
         let score = build_job_pr["build_score"].as_f64().unwrap_or_default();
-
         let mut pr_title = pr_title.to_string();
         pr_title.truncate(50);
         let timestamp = timestamp.replace("T", "<br>");
+
+        // Shorten duplicate messages to "(Same)"
+        let msg =
+            if Some(msg.to_string()) == prev_msg {
+                "(Same)".to_string()
+            } else {
+                prev_msg = Some(msg.to_string());
+                msg.to_string()
+            };
+
+        // Render Errors in Red
         let error_warning = 
             if score == 0.0 { "bg-red-900" }
             else if score == 1.0 { "bg-green-900" }
