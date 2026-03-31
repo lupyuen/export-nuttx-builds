@@ -159,7 +159,7 @@ fn main() {
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", error_warning.as_str())])
-                .with_link(build_url, msg.to_owned() + "<br><br>")
+                .with_link(build_url, msg)
             );
         table.add_custom_body_row(row);
     }
