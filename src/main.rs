@@ -151,7 +151,7 @@ fn main() {
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", "px-6 py-4 items-start gap-1.5 text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm leading-snug break-words")])
-                .with_link(pr_url, format!("{pr}: {pr_title}"))
+                .with_link(pr_url, format!("{pr}: {pr_title}").replace(":", ":<br>"))
             )
             .with_cell(TableCell::default()
                 .with_attributes([("class", "px-6 py-4 items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-800 border border-slate-200 break-all")])
