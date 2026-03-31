@@ -117,7 +117,7 @@ fn main() {
                     .with_raw("Board / Config")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 min-w-[400px]")])
+                    .with_attributes([("class", "px-6 py-4 min-w-[400px] w-full")])
                     .with_raw("Error / Warning")
                 )
             )
@@ -138,9 +138,10 @@ fn main() {
         pr_title.truncate(50);
         let timestamp = timestamp.replace("T", "<br>");
         let error_warning = 
-            if score == 0.0 { "info" }
-            else if score == 1.0 { "error" }
-            else { "warning" };
+            if score == 0.0 { "bg-red-900" }
+            else if score == 1.0 { "bg-green-900" }
+            else { "bg-gray-900" };
+        let error_warning = error_warning.to_string() + " px-6 py-4 block text-gray-300 rounded-lg p-3 font-mono text-xs leading-relaxed hover:bg-gray-800 transition-colors border border-gray-800 shadow-inner group-hover:border-gray-600";
 
         let row = TableRow::new()
             .with_attributes([("class", "hover:bg-gray-50/80 transition-colors group align-top")])
@@ -157,7 +158,7 @@ fn main() {
                 .with_raw(format!("{board}<br>:{config}"))
             )
             .with_cell(TableCell::default()
-                .with_attributes([("class", "px-6 py-4 block bg-gray-900 text-gray-300 rounded-lg p-3 font-mono text-xs leading-relaxed hover:bg-gray-800 transition-colors border border-gray-800 shadow-inner group-hover:border-gray-600")])
+                .with_attributes([("class", error_warning.as_str())])
                 .with_link(build_url, msg.to_owned() + "<br><br>")
             );
         table.add_custom_body_row(row);
@@ -177,7 +178,8 @@ fn main() {
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 md:p-8 font-sans antialiased">
 
-    <div class="max-w-7xl mx-auto">
+    <div class="w-full mx-auto">
+
         <!-- Dashboard Header -->
         <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
