@@ -187,7 +187,7 @@ fn main() {
                     <i data-lucide="activity" class="text-blue-600"></i>
                     NuttX Build Monitor
                 </h1>
-                <p class="text-sm text-gray-500 mt-1">Showing recent NuttX CI warnings and errors</p>
+                <p class="text-sm text-gray-500 mt-1">Showing recent errors and warnings for NuttX GitHub CI</p>
             </div>
             <div class="text-sm text-gray-500 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
                 <i data-lucide="clock" class="w-4 h-4"></i>
