@@ -1,7 +1,7 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
 use core::time;
 use std::{fs::read_dir, thread::sleep, time::Duration};
-use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
+use build_html::{Html, HtmlContainer, Table, TableCell, TableCellType, TableRow};
 use struson::{
     json_path,
     reader::{JsonReader, JsonStreamReader, simple::{SimpleJsonReader, ValueReader}},
@@ -98,16 +98,31 @@ fn main() {
     std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
 
     // Generate the HTML Table from Merged Job-PR-Build JSON
-    let now = &chrono::Utc::now().to_rfc3339()[..19];
-    let header = [
-        "Timestamp", 
-        "PR", 
-        "Board / Config", 
-        &format!("Error / Warning (Updated {now})")
-    ];
+    let now = &chrono::Utc::now().to_rfc3339()[..19].replace("T", " ");
     let mut table = Table::new()
-        .with_attributes([("class", "table")])
-        .with_header_row(header);
+        .with_attributes([("class", "w-full text-left border-collapse whitespace-nowrap md:whitespace-normal")])
+        .with_custom_header_row(
+            TableRow::new()
+                .with_attributes([("class", "bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-semibold")])
+                .with_cell(TableCell::new(TableCellType::Header)
+                    .with_attributes([("class", "px-6 py-4 w-32")])
+                    .with_raw("Timestamp")
+                )
+                .with_cell(TableCell::new(TableCellType::Header)
+                    .with_attributes([("class", "px-6 py-4 w-64")])
+                    .with_raw("Pull Request")
+                )
+                .with_cell(TableCell::new(TableCellType::Header)
+                    .with_attributes([("class", "px-6 py-4 w-64")])
+                    .with_raw("Board / Config")
+                )
+                .with_cell(TableCell::new(TableCellType::Header)
+                    .with_attributes([("class", "px-6 py-4 min-w-[400px]")])
+                    .with_raw("Error / Warning")
+                )
+            )
+        .with_tbody_attributes([("class", "divide-y divide-gray-100")]);
+
     for build_job_pr in merged_json_array {
         let timestamp = build_job_pr["build_timestamp"].as_str().unwrap_or_default();
         let pr = build_job_pr["pr_number"].as_u64().map(|n| n.to_string()).unwrap_or_default();
@@ -147,7 +162,57 @@ fn main() {
             );
         table.add_custom_body_row(row);
     }
-    let html = table.to_html_string();
+
+    let header = format!
+(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NuttX Build Monitor</title>
+    <!-- Import Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Lucide Icons for some visual flair -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 md:p-8 font-sans antialiased">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Dashboard Header -->
+        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-600"></i>
+                    NuttX Build Monitor
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">Showing recent NuttX CI warnings and errors</p>
+            </div>
+            <div class="text-sm text-gray-500 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+                Updated: {now} UTC
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Responsive wrapper to prevent breaking on small screens -->
+            <div class="overflow-x-auto">
+"#);
+
+    let footer =
+r#"
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialize icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+"#;
+    let html = header.to_string() + &table.to_html_string() + footer;
     println!("html:\n{html}");
 
     // Write the HTML Table to a Static File
