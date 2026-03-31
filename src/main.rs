@@ -109,11 +109,11 @@ fn main() {
                     .with_raw("Timestamp")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 min-w-[200px]")])
+                    .with_attributes([("class", "px-6 py-4 w-50")])
                     .with_raw("Pull Request")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 w-64")])
+                    .with_attributes([("class", "px-6 py-4 min-w-[200px]")])
                     .with_raw("Board / Config")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
@@ -141,7 +141,7 @@ fn main() {
             if score == 0.0 { "bg-red-900" }
             else if score == 1.0 { "bg-green-900" }
             else { "bg-gray-900" };
-        let error_warning = error_warning.to_string() + " px-6 py-4 block text-gray-300 rounded-lg p-3 font-mono text-xs leading-relaxed hover:bg-gray-800 transition-colors border border-gray-800 shadow-inner group-hover:border-gray-600";
+        let error_warning = error_warning.to_string() + " px-6 py-4 block text-gray-300 rounded-lg p-3 font-mono text-xs leading-relaxed hover:bg-gray-800 transition-colors border border-gray-800 shadow-inner group-hover:border-gray-600 break-all whitespace-normal";
 
         let row = TableRow::new()
             .with_attributes([("class", "hover:bg-gray-50/80 transition-colors group align-top")])
@@ -150,11 +150,11 @@ fn main() {
                 .with_raw(timestamp)
             )
             .with_cell(TableCell::default()
-                .with_attributes([("class", "px-6 py-4 items-start gap-1.5 text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm leading-snug")])
+                .with_attributes([("class", "px-6 py-4 items-start gap-1.5 text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm leading-snug break-words")])
                 .with_link(pr_url, format!("{pr}: {pr_title}"))
             )
             .with_cell(TableCell::default()
-                .with_attributes([("class", "px-6 py-4 items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-800 border border-slate-200")])
+                .with_attributes([("class", "px-6 py-4 items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-800 border border-slate-200 break-all")])
                 .with_raw(format!("{board}<br>:{config}"))
             )
             .with_cell(TableCell::default()
