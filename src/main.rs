@@ -11,6 +11,14 @@ use struson::{
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
+    // Fetch the Recent Jobs from the Job-PR JSON
+    let recent_jobs = fetch_recent_jobs();
+    println!("Recent Jobs: {recent_jobs}\n");
+
+    // Render the Recent Jobs as HTML Table
+    let recent_jobs_html = render_recent_jobs(&recent_jobs);
+    println!("Recent Jobs HTML:\n{recent_jobs_html}\n");
+
     // Remember the Merged Job-PR-Build JSON for each Run ID
     let mut merged_json_array = Vec::<serde_json::Value>::new();
 
@@ -95,6 +103,8 @@ fn main() {
     // Write the JSON Array to a file
     let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
     std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
+    let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs).unwrap();
+    std::fs::write("../nuttx-github-jobs/build-monitor-pr.json", recent_jobs_json_str).unwrap();
 
     // Generate the HTML Table from Merged Job-PR-Build JSON
     let now = &chrono::Utc::now().to_rfc3339()[..19].replace("T", " ");
@@ -206,6 +216,9 @@ fn main() {
             </div>
         </div>
 
+        <!-- Recent Jobs Table -->
+        {recent_jobs_html}
+
         <!-- Table Card -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Responsive wrapper to prevent breaking on small screens -->
@@ -230,6 +243,91 @@ r#"
 
     // Write the HTML Table to a Static File
     std::fs::write("../nuttx-github-jobs/build-monitor.html", html).unwrap()
+}
+
+/// Scan the Job-PR JSON for Jobs that were started 24 hours ago or later.
+/// Return the Jobs as a JSON Array.
+/// Skip the earlier Jobs for the same PRs.
+fn fetch_recent_jobs() -> serde_json::Value {
+    // Open the Job-PR JSON File and create a Streaming JSON Reader
+    let file = std::fs::read(JOB_PR_JSON).unwrap();
+    let json_reader = SimpleJsonReader::new(file.as_slice());
+
+    // For each Job-PR record in the array...
+    let mut found_prs = Vec::<u64>::new();
+    let mut recent_jobs = Vec::<u64>::new();
+    json_reader.read_array_items(|array_reader| {
+        // Fetch the Run ID, Created At and PR Number:
+        // {"job_createdAt": "2026-04-01T22:06:23Z", "job_databaseId": 23873176516, "pr_number": 18654, ...
+        let mut run_id = None::<u64>;
+        let mut created_at = None::<String>;
+        let mut pr_number = None::<u64>;
+        array_reader.read_object_owned_names(|name, value_reader| {
+            match name.as_str() {
+                "job_databaseId" => {
+                    let val: u64 = value_reader.read_number().unwrap().unwrap();
+                    run_id = Some(val);
+                },
+                "pr_number" => {
+                    let val: u64 = value_reader.read_number().unwrap().unwrap();
+                    pr_number = Some(val);
+                },
+                "job_createdAt" => {
+                    let val: String = value_reader.read_string().unwrap();
+                    created_at = Some(val);
+                },
+                _ => {}
+            }
+            Ok(())
+        })?;
+        if run_id.is_none() || created_at.is_none() || pr_number.is_none() {
+            return Err("Missing required fields".into());
+        }
+        let run_id = run_id.unwrap();
+        let created_at = created_at.unwrap();
+        let pr_number = pr_number.unwrap();
+
+        // Stop if the Job-PR is Older than 24 Hours        
+        let created_at = chrono::DateTime::parse_from_rfc3339(&created_at).unwrap();
+        let now = chrono::Utc::now();
+        if now.signed_duration_since(created_at) > chrono::Duration::hours(24) {
+            return Err("Older than 24 hours".into());
+        }
+
+        // Skip if the PR was already found in an earlier Job-PR
+        if found_prs.contains(&pr_number) { return Ok(()); }
+        found_prs.push(pr_number);
+
+        // Add the Job-PR to the Recent Jobs Array
+        recent_jobs.push(run_id);
+        Ok(())
+    }).unwrap_or_default();
+
+    // For each Recent Job-PR, Fetch the Job-PR JSON and add it to the Result Array
+    let mut recent_jobs_json = Vec::<serde_json::Value>::new();
+    for run_id in recent_jobs {
+        let job_pr = fetch_job_pr(run_id);
+        if let Ok(job_pr) = job_pr {
+            let job_pr_value: serde_json::Value = serde_json::from_str(&job_pr).unwrap();
+            recent_jobs_json.push(job_pr_value);
+        }
+    }
+    serde_json::Value::Array(recent_jobs_json)
+}
+
+/// Render the Recent Jobs as HTML Table
+fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
+    let mut html = String::new();
+    for job_pr in recent_jobs.as_array().unwrap() {
+        let run_id = job_pr["job_databaseId"].as_u64().unwrap_or_default();
+        let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
+        let pr_url = job_pr["pr_url"].as_str().unwrap_or_default();
+        let pr_title = job_pr["pr_title"].as_str().unwrap_or_default();
+        let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
+        let created_at = job_pr["job_createdAt"].as_str().unwrap_or_default();
+        html += &format!("<tr><td><a href=\"{pr_url}\">PR #{pr_number}: {pr_title}</a> (Run ID: {run_id}) - {job_conclusion}</td></tr>\n");
+    }
+    format!("<table>{html}</table>")
 }
 
 /// Fetch the Job-PR JSON for a Given Run ID (Job ID)
