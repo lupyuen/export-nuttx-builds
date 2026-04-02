@@ -217,7 +217,12 @@ fn main() {
         </div>
 
         <!-- Recent Jobs Table -->
-        {recent_jobs_html}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Responsive wrapper to prevent breaking on small screens -->
+            <div class="overflow-x-auto">
+                {recent_jobs_html}
+            </div>
+        </div>
 
         <!-- Table Card -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
