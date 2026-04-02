@@ -220,9 +220,9 @@ fn main() {
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Responsive wrapper to prevent breaking on small screens -->
             <div class="overflow-x-auto">
-                <!--
+            <!--
                 {recent_jobs_html}
-                -->
+            -->
             </div>
         </div>
 
@@ -269,6 +269,7 @@ fn fetch_recent_jobs() -> serde_json::Value {
         let mut run_id = None::<u64>;
         let mut started_at = None::<String>;
         let mut pr_number = None::<u64>;
+        let mut job_name = None::<String>;
         array_reader.read_object_owned_names(|name, value_reader| {
             match name.as_str() {
                 "job_databaseId" => {
@@ -283,16 +284,22 @@ fn fetch_recent_jobs() -> serde_json::Value {
                     let val: String = value_reader.read_string().unwrap();
                     started_at = Some(val);
                 },
+                "job_name" => {
+                    let val: String = value_reader.read_string().unwrap();
+                    job_name = Some(val);
+                },
                 _ => {}
             }
             Ok(())
         })?;
-        if run_id.is_none() || started_at.is_none() || pr_number.is_none() {
+        if run_id.is_none() || started_at.is_none() || pr_number.is_none() || job_name.is_none() {
             return Err("Missing required fields".into());
         }
         let run_id = run_id.unwrap();
         let started_at = started_at.unwrap();
         let pr_number = pr_number.unwrap();
+        let job_name = job_name.unwrap();
+        if job_name != "Build" { return Ok(()); }
 
         // Stop if the Job-PR is Older than 24 Hours        
         let started_at = chrono::DateTime::parse_from_rfc3339(&started_at).unwrap();
