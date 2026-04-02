@@ -299,11 +299,11 @@ fn fetch_recent_jobs() -> serde_json::Value {
         let job_name = job_name.unwrap();
         if job_name != "Build" { return Ok(()); }
 
-        // Stop if the Job-PR is Older than 24 Hours        
+        // Stop if the Job-PR is Older than 48 Hours        
         let started_at = chrono::DateTime::parse_from_rfc3339(&started_at).unwrap();
         let now = chrono::Utc::now();
-        if now.signed_duration_since(started_at) > chrono::Duration::hours(24) {
-            return Err("Older than 24 hours".into());
+        if now.signed_duration_since(started_at) > chrono::Duration::hours(48) {
+            return Err("Older than 48 hours".into());
         }
 
         // Skip if the PR was already found in an earlier Job-PR
