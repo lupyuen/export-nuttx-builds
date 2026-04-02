@@ -220,9 +220,7 @@ fn main() {
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Responsive wrapper to prevent breaking on small screens -->
             <div class="overflow-x-auto">
-            <!--
                 {recent_jobs_html}
-            -->
             </div>
         </div>
 
@@ -322,7 +320,10 @@ fn fetch_recent_jobs() -> serde_json::Value {
     for run_id in recent_jobs {
         let job_pr = fetch_job_pr(run_id);
         if let Ok(job_pr) = job_pr {
+            // Ignore all Closed and Merged PRs
             let job_pr_value: serde_json::Value = serde_json::from_str(&job_pr).unwrap();
+            let pr_state = job_pr_value["pr_state"].as_str().unwrap_or_default();
+            if pr_state == "CLOSED" || pr_state == "MERGED" { continue; }
             recent_jobs_json.push(job_pr_value);
         }
     }
@@ -331,7 +332,11 @@ fn fetch_recent_jobs() -> serde_json::Value {
 
 /// Render the Recent Jobs as HTML Table
 fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
-    let mut html = String::new();
+    let mut table = Table::new()
+        .with_attributes([("class", "w-full text-left border-collapse whitespace-nowrap md:whitespace-normal")])
+        .with_tbody_attributes([("class", "divide-y divide-gray-100")]);
+    let mut row = TableRow::new()
+        .with_attributes([("class", "bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-semibold")]);
     for job_pr in recent_jobs.as_array().unwrap() {
         let run_id = job_pr["job_databaseId"].as_u64().unwrap_or_default();
         let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
@@ -339,9 +344,25 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         let pr_title = job_pr["pr_title"].as_str().unwrap_or_default();
         let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
         let started_at = job_pr["job_startedAt"].as_str().unwrap_or_default();
-        html += &format!("<tr><td><a href=\"{pr_url}\">PR #{pr_number}: {pr_title}</a> (Run ID: {run_id}) - {job_conclusion}</td></tr>\n");
+        let mut pr_text = format!("PR#{pr_number}: {pr_title}").replace(":", ":<br>");
+        pr_text.truncate(50);
+        let pr_attr = match job_conclusion {
+            "" => "bg-orange-600",  // Still running
+            "action_required" => "bg-blue-900",
+            "cancelled" => "bg-magenta-900",
+            "failure" => "bg-red-900",
+            "startup_failure" => "bg-cyan-900",
+            "success" => "bg-green-900",
+            _ => "bg-slate-900"
+        }; 
+        let pr_attr = format!("{pr_attr} px-6 py-4 items-start gap-1.5 text-slate-200 hover:text-slate-100 hover:underline font-medium text-sm leading-snug break-words");
+        row.add_cell(TableCell::default()
+            .with_attributes([("class", pr_attr.as_str())])
+            .with_link(pr_url, pr_text)
+        );
     }
-    format!("<table>{html}</table>")
+    table.add_custom_body_row(row);
+    table.to_html_string()
 }
 
 /// Fetch the Job-PR JSON for a Given Run ID (Job ID)
