@@ -257,10 +257,10 @@ fn fetch_recent_jobs() -> serde_json::Value {
     let mut found_prs = Vec::<u64>::new();
     let mut recent_jobs = Vec::<u64>::new();
     json_reader.read_array_items(|array_reader| {
-        // Fetch the Run ID, Created At and PR Number:
-        // {"job_createdAt": "2026-04-01T22:06:23Z", "job_databaseId": 23873176516, "pr_number": 18654, ...
+        // Fetch the Run ID, Started At and PR Number:
+        // {"job_startedAt": "2026-04-01T22:06:23Z", "job_databaseId": 23873176516, "pr_number": 18654, ...
         let mut run_id = None::<u64>;
-        let mut created_at = None::<String>;
+        let mut started_at = None::<String>;
         let mut pr_number = None::<u64>;
         array_reader.read_object_owned_names(|name, value_reader| {
             match name.as_str() {
@@ -272,25 +272,25 @@ fn fetch_recent_jobs() -> serde_json::Value {
                     let val: u64 = value_reader.read_number().unwrap().unwrap();
                     pr_number = Some(val);
                 },
-                "job_createdAt" => {
+                "job_startedAt" => {
                     let val: String = value_reader.read_string().unwrap();
-                    created_at = Some(val);
+                    started_at = Some(val);
                 },
                 _ => {}
             }
             Ok(())
         })?;
-        if run_id.is_none() || created_at.is_none() || pr_number.is_none() {
+        if run_id.is_none() || started_at.is_none() || pr_number.is_none() {
             return Err("Missing required fields".into());
         }
         let run_id = run_id.unwrap();
-        let created_at = created_at.unwrap();
+        let started_at = started_at.unwrap();
         let pr_number = pr_number.unwrap();
 
         // Stop if the Job-PR is Older than 24 Hours        
-        let created_at = chrono::DateTime::parse_from_rfc3339(&created_at).unwrap();
+        let started_at = chrono::DateTime::parse_from_rfc3339(&started_at).unwrap();
         let now = chrono::Utc::now();
-        if now.signed_duration_since(created_at) > chrono::Duration::hours(24) {
+        if now.signed_duration_since(started_at) > chrono::Duration::hours(24) {
             return Err("Older than 24 hours".into());
         }
 
@@ -324,7 +324,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         let pr_url = job_pr["pr_url"].as_str().unwrap_or_default();
         let pr_title = job_pr["pr_title"].as_str().unwrap_or_default();
         let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
-        let created_at = job_pr["job_createdAt"].as_str().unwrap_or_default();
+        let started_at = job_pr["job_startedAt"].as_str().unwrap_or_default();
         html += &format!("<tr><td><a href=\"{pr_url}\">PR #{pr_number}: {pr_title}</a> (Run ID: {run_id}) - {job_conclusion}</td></tr>\n");
     }
     format!("<table>{html}</table>")
