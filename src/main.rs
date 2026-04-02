@@ -338,14 +338,22 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
     let mut row = TableRow::new()
         .with_attributes([("class", "bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-semibold")]);
     for job_pr in recent_jobs.as_array().unwrap() {
-        let run_id = job_pr["job_databaseId"].as_u64().unwrap_or_default();
         let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
         let pr_url = job_pr["pr_url"].as_str().unwrap_or_default();
         let pr_title = job_pr["pr_title"].as_str().unwrap_or_default();
         let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
         let started_at = job_pr["job_startedAt"].as_str().unwrap_or_default();
-        let mut pr_text = format!("PR#{pr_number}: {pr_title}").replace(":", ":<br>");
-        pr_text.truncate(50);
+        let updated_at = job_pr["job_updatedAt"].as_str().unwrap_or_default();
+
+        // Compute the Elapsed Time since the Job was Started: HH:MM:SS
+        let started_at = chrono::DateTime::parse_from_rfc3339(started_at).unwrap();
+        let updated_at = chrono::DateTime::parse_from_rfc3339(updated_at).unwrap();
+        let elapsed = updated_at.signed_duration_since(started_at);
+        let hours = elapsed.num_hours();
+        let minutes = elapsed.num_minutes() % 60;
+        let elapsed_str = format!("{hours}h {minutes}m");
+
+        // Colour the PR based on the Job Conclusion
         let pr_attr = match job_conclusion {
             "" => "bg-orange-600",  // Still running
             "action_required" => "bg-blue-900",
@@ -355,7 +363,12 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
             "success" => "bg-green-900",
             _ => "bg-slate-900"
         }; 
-        let pr_attr = format!("{pr_attr} px-6 py-4 items-start gap-1.5 text-slate-200 hover:text-slate-100 hover:underline font-medium text-sm leading-snug break-words");
+        let pr_attr = format!("{pr_attr} px-6 py-4 items-start gap-1.5 text-slate-200 hover:text-slate-100 hover:underline font-medium text-sm leading-snug break-all");
+
+        // Compose the PR Text
+        let mut pr_text = format!("PR#{pr_number}: {pr_title}").replace(":", ":<br>");
+        pr_text.truncate(50);
+        let pr_text = format!("[ {elapsed_str} ]<br>{pr_text}");
         row.add_cell(TableCell::default()
             .with_attributes([("class", pr_attr.as_str())])
             .with_link(pr_url, pr_text)
