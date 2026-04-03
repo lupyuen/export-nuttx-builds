@@ -362,11 +362,30 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
 
         // Compute the Elapsed Time since the Job was Started: HH:MM:SS
         let started_at = chrono::DateTime::parse_from_rfc3339(started_at).unwrap();
-        let updated_at = chrono::DateTime::parse_from_rfc3339(updated_at).unwrap();
+        let updated_at = // If the Job is still running: Compute the Elapsed Time based on the current time
+            if job_conclusion == "" { chrono::Utc::now() }
+            else { chrono::DateTime::parse_from_rfc3339(updated_at).unwrap().with_timezone(&chrono::Utc) };
         let elapsed = updated_at.signed_duration_since(started_at);
         let hours = elapsed.num_hours();
         let minutes = elapsed.num_minutes() % 60;
         let elapsed_str = format!("{hours}h {minutes}m");
+
+        // If the Job is still running: Compute the Elapsed Time based on the current time
+        let elapsed_str = if job_conclusion == "" {
+            let now = chrono::Utc::now();
+            let elapsed = now.signed_duration_since(started_at);
+            let hours = elapsed.num_hours();
+            let minutes = elapsed.num_minutes() % 60;
+            format!("{hours}h {minutes}m")
+        } else {
+            elapsed_str
+        };
+
+        // Choose an Icon based on the Job Conclusion
+        let icon = match job_conclusion {
+            "" => "loader",  // Still running
+            _ => "clock"
+        };
 
         // Colour the PR based on the Job Conclusion
         let pr_attr = match job_conclusion {
@@ -383,7 +402,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         // Compose the PR Text
         pr_title.truncate(50);
         let pr_text = format!(r#"
-            <span class="opacity-80 flex items-center mb-1"><i data-lucide="clock" class="w-4 h-4 mr-1"></i> {elapsed_str}</span>
+            <span class="opacity-80 flex items-center mb-1"><i data-lucide="{icon}" class="w-4 h-4 mr-1"></i> {elapsed_str}</span>
             <span class="font-bold block">PR#{pr_number}</span>
             <span class="block truncate mt-1">{pr_title}</span>
         "#);
