@@ -357,7 +357,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
 
         // Warn if too many builds
         let build_count_msg = 
-            if build_count >= 10 { format!(r#"<span class="opacity-80 flex items-center mt-1"><i data-lucide="alert-triangle" class="w-4 h-4 mr-1"></i> {build_count} Builds</span>"#) }
+            if build_count >= 10 { format!(r#"<span class="text-[10px] truncate opacity-80 flex items-center mt-1"><i data-lucide="alert-triangle" class="w-4 h-4 mr-1"></i> {build_count} Builds</span>"#) }
             else { "".to_string() };
 
         // Compose the PR Text
