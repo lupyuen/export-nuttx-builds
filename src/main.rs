@@ -363,7 +363,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         // Compute the Elapsed Time since the Job was Started: HH:MM:SS
         let started_at = chrono::DateTime::parse_from_rfc3339(started_at).unwrap();
         let updated_at = // If the Job is still running: Compute the Elapsed Time based on the current time
-            if job_conclusion == "" { chrono::Utc::now() }
+            if job_conclusion.is_empty() { chrono::Utc::now() }
             else { chrono::DateTime::parse_from_rfc3339(updated_at).unwrap().with_timezone(&chrono::Utc) };
         let elapsed = updated_at.signed_duration_since(started_at);
         let hours = elapsed.num_hours();
@@ -371,7 +371,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         let elapsed_str = format!("{hours}h {minutes}m");
 
         // If the Job is still running: Compute the Elapsed Time based on the current time
-        let elapsed_str = if job_conclusion == "" {
+        let elapsed_str = if job_conclusion.is_empty() {
             let now = chrono::Utc::now();
             let elapsed = now.signed_duration_since(started_at);
             let hours = elapsed.num_hours();
@@ -384,7 +384,9 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         // Choose an Icon based on the Job Conclusion
         let icon = match job_conclusion {
             "" => "loader",  // Still running
-            _ => "clock"
+            _ =>  // Flag any slow jobs
+                if elapsed.num_minutes() > 4 * 60 { "alert-triangle" } 
+                else { "clock" }
         };
 
         // Colour the PR based on the Job Conclusion
