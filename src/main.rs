@@ -383,7 +383,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         // Compose the PR Text
         pr_title.truncate(50);
         let pr_text = format!(r#"
-            <span class="opacity-80 block mb-1"><i data-lucide="clock" class="w-4 h-4"></i> {elapsed_str}</span>
+            <span class="opacity-80 flex items-center mb-1"><i data-lucide="clock" class="w-4 h-4 mr-1"></i> {elapsed_str}</span>
             <span class="font-bold block">PR#{pr_number}</span>
             <span class="block truncate mt-1">{pr_title}</span>
         "#);
