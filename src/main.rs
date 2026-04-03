@@ -41,6 +41,7 @@ fn main() {
 
             // Run ID is the last part of the path: 23712816820
             let run_id = path.file_name().unwrap().to_str().unwrap();
+            if run_id.starts_with(".") { continue; }
             let run_id = run_id.parse::<u64>();
             let run_id = match run_id {
                 Ok(id) => id,
@@ -384,10 +385,11 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         // Choose an Icon based on the Job Conclusion
         let icon = match job_conclusion {
             "" => "loader",  // Still running
-            _ =>  // Flag any slow jobs
-                if elapsed.num_minutes() > 4 * 60 { "alert-triangle" } 
-                else { "clock" }
+            _ =>  "clock"
         };
+        let icon = // Flag any slow jobs
+            if elapsed.num_minutes() > 4 * 60 { "alert-triangle" } 
+            else { icon };
 
         // Colour the PR based on the Job Conclusion
         let pr_attr = match job_conclusion {
