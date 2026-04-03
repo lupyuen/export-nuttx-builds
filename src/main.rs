@@ -543,6 +543,9 @@ r#"<!DOCTYPE html>
                 <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
                     <i data-lucide="activity" class="text-blue-600"></i>
                     NuttX Build Monitor
+                    <a href="https://github.com/apache/nuttx/issues/18659">
+                        <i data-lucide="info"></i>
+                    </a>
                 </h1>
                 <p class="text-sm text-gray-500 mt-1">Recent errors and warnings for NuttX GitHub CI</p>
             </div>
