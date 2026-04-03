@@ -353,7 +353,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
             "success" => "bg-green-900",
             _ => "bg-slate-900"
         }; 
-        let pr_attr = format!("{pr_attr} p-4 text-slate-200 hover:text-slate-100 transition-colors border-r border-white/10 last:border-0");
+        let pr_attr = format!("{pr_attr} align-top p-4 text-slate-200 hover:text-slate-100 transition-colors border-r border-white/10 last:border-0");
 
         // Warn if too many builds
         let build_count_msg = 
