@@ -22,14 +22,22 @@ fn main() {
     let pr_build_counts = count_pr_builds(&recent_jobs);
     println!("PR Build Counts: {pr_build_counts:?}\n");
 
+    // Inject the Build Counts into the Recent Jobs JSON
+    let mut recent_jobs_with_counts = recent_jobs.clone();
+    for job_pr in recent_jobs_with_counts.as_array_mut().unwrap() {
+        let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
+        let build_count = pr_build_counts.get(&pr_number).cloned().unwrap_or(0);
+        job_pr.as_object_mut().unwrap().insert("build_count".to_string(), serde_json::Value::Number(build_count.into()));
+    }
+
     // Render the Recent Jobs as HTML Table
-    let recent_jobs_html = render_recent_jobs(&recent_jobs);
+    let recent_jobs_html = render_recent_jobs(&recent_jobs_with_counts);
     println!("Recent Jobs HTML:\n{recent_jobs_html}\n");
 
     // Write the Recent Jobs JSON and the Merged Job-PR-Build JSON to Static Files
     let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
     std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
-    let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs).unwrap();
+    let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs_with_counts).unwrap();
     std::fs::write("../nuttx-github-jobs/build-monitor-pr.json", recent_jobs_json_str).unwrap();
 
     // Generate the HTML Table from Merged Job-PR-Build JSON
@@ -303,6 +311,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
         let started_at = job_pr["job_startedAt"].as_str().unwrap_or_default();
         let updated_at = job_pr["job_updatedAt"].as_str().unwrap_or_default();
+        let build_count = job_pr["build_count"].as_u64().unwrap_or_default();
 
         // Compute the Elapsed Time since the Job was Started: HH:MM:SS
         let started_at = chrono::DateTime::parse_from_rfc3339(started_at).unwrap();
@@ -346,12 +355,18 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         }; 
         let pr_attr = format!("{pr_attr} p-4 text-slate-200 hover:text-slate-100 transition-colors border-r border-white/10 last:border-0");
 
+        // Warn if too many builds
+        let build_count_msg = 
+            if build_count > 10 { format!(r#"<span class="opacity-80 flex items-center mt-1"><i data-lucide="alert-triangle" class="w-4 h-4 mr-1"></i> {build_count} Builds</span>"#) }
+            else { "".to_string() };
+
         // Compose the PR Text
         pr_title.truncate(50);
         let pr_text = format!(r#"
             <span class="opacity-80 flex items-center mb-1"><i data-lucide="{icon}" class="w-4 h-4 mr-1"></i> {elapsed_str}</span>
             <span class="font-bold block">PR#{pr_number}</span>
             <span class="block truncate mt-1">{pr_title}</span>
+            {build_count_msg}
         "#);
         row.add_cell(TableCell::default()
             .with_attributes([("class", pr_attr.as_str())])
@@ -380,7 +395,7 @@ fn fetch_job_pr(run_id: u64) -> Result<String, Box<dyn std::error::Error>> {
                 if val == run_id {
                     // We simulate an Error to quit early
                     index = Some(i);
-                    println!("Found Job-PR Index: {i}\n");
+                    println!("Found Job-PR Index: {i}");
                     return Err(format!("{i}").to_string().into());
                 }
             }
