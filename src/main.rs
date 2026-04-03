@@ -19,6 +19,28 @@ fn main() {
     let recent_jobs_html = render_recent_jobs(&recent_jobs);
     println!("Recent Jobs HTML:\n{recent_jobs_html}\n");
 
+    // Merge the Job-PR JSON with the Build JSON for each Run ID (Job ID) in the Error and Warning Folders
+    let merged_json_array = merge_job_pr_with_build();
+
+    // Write the JSON Array to a file
+    let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
+    std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
+    let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs).unwrap();
+    std::fs::write("../nuttx-github-jobs/build-monitor-pr.json", recent_jobs_json_str).unwrap();
+
+    // Generate the HTML Table from Merged Job-PR-Build JSON
+    let table = render_job_pr_build(&merged_json_array);
+    let html = html_header(&recent_jobs_html) + 
+        &table.to_html_string() +
+        html_footer();
+    println!("html:\n{html}");
+
+    // Write the HTML Table to a Static File
+    std::fs::write("../nuttx-github-jobs/build-monitor.html", html).unwrap()
+}
+
+/// Merge the Job-PR JSON with the Build JSON for each Run ID (Job ID) in the Error and Warning Folders
+fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
     // Remember the Merged Job-PR-Build JSON for each Run ID
     let mut merged_json_array = Vec::<serde_json::Value>::new();
 
@@ -27,7 +49,7 @@ fn main() {
         let path = format!("../nuttx-github-jobs/{folder}");
         if !std::path::Path::new(&path).exists() {
             println!("Folder {path} does not exist. Please parse-nuttx-builds first.");
-            return;
+            return merged_json_array;
         }
 
         // Iterate Backwards through all Run IDs (Job IDs) in the Error and Warning Folders
@@ -99,16 +121,12 @@ fn main() {
         let a_timestamp = a["build_timestamp"].as_str().unwrap_or_default();
         let b_timestamp = b["build_timestamp"].as_str().unwrap_or_default();
         b_timestamp.cmp(a_timestamp)
-    });
+    });    
+    merged_json_array
+}
 
-    // Write the JSON Array to a file
-    let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
-    std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
-    let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs).unwrap();
-    std::fs::write("../nuttx-github-jobs/build-monitor-pr.json", recent_jobs_json_str).unwrap();
-
-    // Generate the HTML Table from Merged Job-PR-Build JSON
-    let now = &chrono::Utc::now().to_rfc3339()[..19].replace("T", " ");
+/// Render the Merged Job-PR-Build JSON Array as HTML Table Rows
+fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
     let mut table = Table::new()
         .with_attributes([("class", "w-full text-left border-collapse whitespace-nowrap md:whitespace-normal")])
         .with_custom_header_row(
@@ -185,86 +203,7 @@ fn main() {
             );
         table.add_custom_body_row(row);
     }
-
-    let header = format!
-(r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NuttX Build Monitor</title>
-    <!-- Import Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Import Lucide Icons for some visual flair -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        /* Custom scrollbar for better visibility on horizontal tables */
-        .custom-scrollbar::-webkit-scrollbar {{
-            height: 6px;
-        }}
-        .custom-scrollbar::-webkit-scrollbar-track {{
-            background: #f1f1f1;
-        }}
-        .custom-scrollbar::-webkit-scrollbar-thumb {{
-            background: #cbd5e1;
-            border-radius: 10px;
-        }}
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {{
-            background: #94a3b8;
-        }}
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-800 p-4 md:p-8 font-sans antialiased">
-
-    <div class="w-full mx-auto">
-
-        <!-- Dashboard Header -->
-        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <i data-lucide="activity" class="text-blue-600"></i>
-                    NuttX Build Monitor
-                </h1>
-                <p class="text-sm text-gray-500 mt-1">Recent errors and warnings for NuttX GitHub CI</p>
-            </div>
-            <div class="text-sm text-gray-500 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
-                <i data-lucide="clock" class="w-4 h-4"></i>
-                Updated: {now} UTC
-            </div>
-        </div>
-
-        <!-- Recent Jobs Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
-            <!-- Responsive wrapper to prevent breaking on small screens -->
-            <div class="overflow-x-auto custom-scrollbar">
-                {recent_jobs_html}
-            </div>
-        </div>
-
-        <!-- Table Card -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <!-- Responsive wrapper to prevent breaking on small screens -->
-            <div class="overflow-x-auto custom-scrollbar">
-"#);
-
-    let footer =
-r#"
-            </div>
-        </div>
-    </div>
-
-    <!-- Initialize icons -->
-    <script>
-        lucide.createIcons();
-    </script>
-</body>
-</html>
-"#;
-    let html = header.to_string() + &table.to_html_string() + footer;
-    println!("html:\n{html}");
-
-    // Write the HTML Table to a Static File
-    std::fs::write("../nuttx-github-jobs/build-monitor.html", html).unwrap()
+    table    
 }
 
 /// Scan the Job-PR JSON for Jobs that were started 24 hours ago or later.
@@ -490,4 +429,85 @@ fn merge_build_json(build_json_path: &str, job_pr: &str) -> Result<String, Box<d
     }
     let merged_json = serde_json::to_string_pretty(&job_pr_value)?;
     Ok(merged_json)
+}
+
+/// Generate the HTML Header
+fn html_header(recent_jobs_html: &str) -> String {
+    let now = &chrono::Utc::now().to_rfc3339()[..19].replace("T", " ");
+    format!(
+r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NuttX Build Monitor</title>
+    <!-- Import Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Lucide Icons for some visual flair -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar for better visibility on horizontal tables */
+        .custom-scrollbar::-webkit-scrollbar {{
+            height: 6px;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-track {{
+            background: #f1f1f1;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-thumb {{
+            background: #cbd5e1;
+            border-radius: 10px;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {{
+            background: #94a3b8;
+        }}
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 md:p-8 font-sans antialiased">
+
+    <div class="w-full mx-auto">
+
+        <!-- Dashboard Header -->
+        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-600"></i>
+                    NuttX Build Monitor
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">Recent errors and warnings for NuttX GitHub CI</p>
+            </div>
+            <div class="text-sm text-gray-500 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+                Updated: {now} UTC
+            </div>
+        </div>
+
+        <!-- Recent Jobs Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <!-- Responsive wrapper to prevent breaking on small screens -->
+            <div class="overflow-x-auto custom-scrollbar">
+                {recent_jobs_html}
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Responsive wrapper to prevent breaking on small screens -->
+            <div class="overflow-x-auto custom-scrollbar">
+"#)
+}
+
+/// Generate the HTML Footer
+fn html_footer() -> &'static str {
+r#"
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialize icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+"#
 }
