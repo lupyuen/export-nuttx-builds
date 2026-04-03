@@ -1,5 +1,5 @@
 //! Export the Jobs, PRs and Builds from the NuttX GitHub Jobs into a Static HTML
-use std::{fs::read_dir, thread::sleep, time::Duration};
+use std::{collections::HashMap, fs::read_dir, thread::sleep, time::Duration};
 use build_html::{Html, HtmlContainer, Table, TableCell, TableCellType, TableRow};
 use struson::{
     json_path,
@@ -11,18 +11,22 @@ use struson::{
 const JOB_PR_JSON: &str = "../nuttx-github-jobs/nuttx-github-jobs.json";
 
 fn main() {
+    // Merge the Job-PR JSON with the Build JSON for each Run ID (Job ID) in the Error and Warning Folders
+    let merged_json_array = merge_job_pr_with_build();
+
     // Fetch the Recent Jobs from the Job-PR JSON
     let recent_jobs = fetch_recent_jobs();
     println!("Recent Jobs: {recent_jobs}\n");
+
+    // Count the number of Builds for each PR in the Recent Jobs
+    let pr_build_counts = count_pr_builds(&recent_jobs);
+    println!("PR Build Counts: {pr_build_counts:?}\n");
 
     // Render the Recent Jobs as HTML Table
     let recent_jobs_html = render_recent_jobs(&recent_jobs);
     println!("Recent Jobs HTML:\n{recent_jobs_html}\n");
 
-    // Merge the Job-PR JSON with the Build JSON for each Run ID (Job ID) in the Error and Warning Folders
-    let merged_json_array = merge_job_pr_with_build();
-
-    // Write the JSON Array to a file
+    // Write the Recent Jobs JSON and the Merged Job-PR-Build JSON to Static Files
     let merged_json_array_str = serde_json::to_string_pretty(&merged_json_array).unwrap();
     std::fs::write("../nuttx-github-jobs/build-monitor.json", merged_json_array_str).unwrap();
     let recent_jobs_json_str = serde_json::to_string_pretty(&recent_jobs).unwrap();
@@ -410,6 +414,51 @@ fn fetch_job_pr(run_id: u64) -> Result<String, Box<dyn std::error::Error>> {
     let job_pr2: serde_json::Value = serde_json::from_str(&job_pr)?;
     let job_pr3 = serde_json::to_string_pretty(&job_pr2)?;
     Ok(job_pr3)
+}
+
+/// Count the number of Builds for each PR in the Recent Jobs
+fn count_pr_builds(recent_jobs: &serde_json::Value) -> HashMap<u64, usize> {
+    let mut pr_build_counts = HashMap::<u64, usize>::new();
+    for job_pr in recent_jobs.as_array().unwrap() {
+        let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
+        pr_build_counts.insert(pr_number, 0);
+    }
+
+    // Scan the Job-PR JSON and count the number of Builds for each PR in the Recent Jobs
+    let file = std::fs::read(JOB_PR_JSON).unwrap();
+    let json_reader = SimpleJsonReader::new(file.as_slice());
+    json_reader.read_array_items(|array_reader| {
+        let mut pr_number = None::<u64>;
+        let mut started_at = None::<String>;
+        array_reader.read_object_owned_names(|name, value_reader| {
+            match name.as_str() {
+                "pr_number" => {
+                    let val: u64 = value_reader.read_number().unwrap().unwrap();
+                    pr_number = Some(val);
+                }
+                "job_startedAt" => {
+                    let val: String = value_reader.read_string().unwrap();
+                    started_at = Some(val);
+                },
+                _ => {}
+            }
+            Ok(())
+        })?;
+        if pr_number.is_none() || started_at.is_none() {
+            return Err("Missing required fields".into());
+        }
+        let pr_number = pr_number.unwrap();
+        let started_at = started_at.unwrap();
+        if pr_build_counts.contains_key(&pr_number) {
+            *pr_build_counts.get_mut(&pr_number).unwrap() += 1;
+        }
+        // Quit if the Job-PR is Older than 30 days
+        if started_at.parse::<chrono::DateTime<chrono::Utc>>().unwrap_or_else(|_| chrono::Utc::now()) < chrono::Utc::now() - chrono::Duration::days(30) {
+            return Err("Older than 30 days".into());
+        }
+        Ok(())
+    }).unwrap_or_default();
+    pr_build_counts
 }
 
 /// Merge the Build JSON into the Job-PR JSON for a Given Run ID (Job ID)
