@@ -445,6 +445,7 @@ fn count_pr_builds(recent_jobs: &serde_json::Value) -> HashMap<u64, usize> {
     json_reader.read_array_items(|array_reader| {
         let mut pr_number = None::<u64>;
         let mut started_at = None::<String>;
+        let mut job_name = None::<String>;
         array_reader.read_object_owned_names(|name, value_reader| {
             match name.as_str() {
                 "pr_number" => {
@@ -455,15 +456,21 @@ fn count_pr_builds(recent_jobs: &serde_json::Value) -> HashMap<u64, usize> {
                     let val: String = value_reader.read_string().unwrap();
                     started_at = Some(val);
                 },
+                "job_name" => {
+                    let val: String = value_reader.read_string().unwrap();
+                    job_name = Some(val);
+                },
                 _ => {}
             }
             Ok(())
         })?;
-        if pr_number.is_none() || started_at.is_none() {
+        if pr_number.is_none() || started_at.is_none() || job_name.is_none() {
             return Err("Missing required fields".into());
         }
         let pr_number = pr_number.unwrap();
         let started_at = started_at.unwrap();
+        let job_name = job_name.unwrap();
+        if job_name != "Build" { return Ok(()); }
         if pr_build_counts.contains_key(&pr_number) {
             *pr_build_counts.get_mut(&pr_number).unwrap() += 1;
         }
