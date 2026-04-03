@@ -196,6 +196,22 @@ fn main() {
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Import Lucide Icons for some visual flair -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar for better visibility on horizontal tables */
+        .custom-scrollbar::-webkit-scrollbar {{
+            height: 6px;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-track {{
+            background: #f1f1f1;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-thumb {{
+            background: #cbd5e1;
+            border-radius: 10px;
+        }}
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {{
+            background: #94a3b8;
+        }}
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 md:p-8 font-sans antialiased">
 
@@ -217,9 +233,9 @@ fn main() {
         </div>
 
         <!-- Recent Jobs Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
             <!-- Responsive wrapper to prevent breaking on small screens -->
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto custom-scrollbar">
                 {recent_jobs_html}
             </div>
         </div>
@@ -227,7 +243,7 @@ fn main() {
         <!-- Table Card -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Responsive wrapper to prevent breaking on small screens -->
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto custom-scrollbar">
 "#);
 
     let footer =
@@ -333,14 +349,13 @@ fn fetch_recent_jobs() -> serde_json::Value {
 /// Render the Recent Jobs as HTML Table
 fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
     let mut table = Table::new()
-        .with_attributes([("class", "w-full text-left border-collapse whitespace-nowrap md:whitespace-normal")])
-        .with_tbody_attributes([("class", "divide-y divide-gray-100")]);
+        .with_attributes([("class", "w-full text-left border-collapse table-fixed min-w-[1200px]")]);
     let mut row = TableRow::new()
-        .with_attributes([("class", "bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-semibold")]);
+        .with_attributes([("class", "text-xs uppercase tracking-wider text-gray-500 font-semibold")]);
     for job_pr in recent_jobs.as_array().unwrap() {
         let pr_number = job_pr["pr_number"].as_u64().unwrap_or_default();
         let pr_url = job_pr["pr_url"].as_str().unwrap_or_default();
-        let pr_title = job_pr["pr_title"].as_str().unwrap_or_default();
+        let mut pr_title = job_pr["pr_title"].as_str().unwrap_or_default().to_string();
         let job_conclusion = job_pr["job_conclusion"].as_str().unwrap_or_default();
         let started_at = job_pr["job_startedAt"].as_str().unwrap_or_default();
         let updated_at = job_pr["job_updatedAt"].as_str().unwrap_or_default();
@@ -363,12 +378,15 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
             "success" => "bg-green-900",
             _ => "bg-slate-900"
         }; 
-        let pr_attr = format!("{pr_attr} px-6 py-4 items-start gap-1.5 text-slate-200 hover:text-slate-100 hover:underline font-medium text-sm leading-snug break-all");
+        let pr_attr = format!("{pr_attr} p-4 text-slate-200 hover:text-slate-100 transition-colors border-r border-white/10 last:border-0");
 
         // Compose the PR Text
-        let mut pr_text = format!("PR#{pr_number}: {pr_title}").replace(":", ":<br>");
-        pr_text.truncate(50);
-        let pr_text = format!("[ {elapsed_str} ]<br>{pr_text}");
+        pr_title.truncate(50);
+        let pr_text = format!(r#"
+            <span class="opacity-80 block mb-1"><i data-lucide="clock" class="w-4 h-4"></i> {elapsed_str}</span>
+            <span class="font-bold block">PR#{pr_number}</span>
+            <span class="block truncate mt-1">{pr_title}</span>
+        "#);
         row.add_cell(TableCell::default()
             .with_attributes([("class", pr_attr.as_str())])
             .with_link(pr_url, pr_text)
