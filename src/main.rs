@@ -347,7 +347,7 @@ fn render_recent_jobs(recent_jobs: &serde_json::Value) -> String {
         let pr_attr = match job_conclusion {
             "" => "bg-orange-600",  // Still running
             "action_required" => "bg-blue-900",
-            "cancelled" => "bg-magenta-900",
+            "cancelled" => "bg-purple-900",
             "failure" => "bg-red-900",
             "startup_failure" => "bg-cyan-900",
             "success" => "bg-green-900",
