@@ -93,7 +93,7 @@ fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
                 Ok(json) => json,
                 Err(e) => {
                     println!("Error fetching Job-PR JSON: {e}");
-                    sleep(Duration::from_secs(5));
+                    sleep(Duration::from_secs(1));
                     continue;
                 }
             };
@@ -113,7 +113,7 @@ fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
                     Ok(json) => json,
                     Err(e) => {
                         println!("Error merging Build JSON: {e}");
-                        sleep(Duration::from_secs(5));
+                        sleep(Duration::from_secs(1));
                         continue;
                     }
                 };
@@ -149,11 +149,17 @@ fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
                     .with_raw("Timestamp")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 w-50")])
+                    .with_attributes([
+                        ("id", "filter-pr"),
+                        ("class", "px-6 py-4 w-50")
+                    ])
                     .with_raw("Pull Request")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 min-w-[200px]")])
+                    .with_attributes([
+                        ("id", "filter-board"),
+                        ("class", "px-6 py-4 min-w-[200px]")
+                    ])
                     .with_raw("Board / Config")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
@@ -161,7 +167,10 @@ fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
                     .with_raw("Error / Warning")
                 )
             )
-        .with_tbody_attributes([("class", "divide-y divide-gray-100")]);
+        .with_tbody_attributes([
+            ("id", "error-table-body"),
+            ("class", "divide-y divide-gray-100")
+        ]);
 
     // For every Merged Job-PR-Build...
     let mut prev_msg = None::<String>;
@@ -537,7 +546,7 @@ r#"<!DOCTYPE html>
 
     <div class="w-full mx-auto">
 
-        <!-- Dashboard Header -->
+        <!-- Dashboard Header Begin -->
         <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -554,16 +563,18 @@ r#"<!DOCTYPE html>
                 Updated: {now} UTC
             </div>
         </div>
+        <!-- Dashboard Header End -->
 
-        <!-- Recent Jobs Table -->
+        <!-- Recent Jobs Table Begin -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
             <!-- Responsive wrapper to prevent breaking on small screens -->
             <div class="overflow-x-auto custom-scrollbar">
                 {recent_jobs_html}
             </div>
         </div>
+        <!-- Recent Jobs Table End -->
 
-        <!-- Table Card -->
+        <!-- Table Card Begin -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Responsive wrapper to prevent breaking on small screens -->
             <div class="overflow-x-auto custom-scrollbar">
@@ -575,12 +586,96 @@ fn html_footer() -> &'static str {
 r#"
             </div>
         </div>
+        <!-- Table Card End -->
     </div>
 
-    <!-- Initialize icons -->
+    <!-- Initialize icons and filters -->
     <script>
-        lucide.createIcons();
+        // TODO: Handle the "(Same)" rows
+
+        window.onload = function() {
+            lucide.createIcons();
+            setupFilters();
+        };
+
+        function setupFilters() {
+            const tableBody = document.getElementById('error-table-body');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            
+            // Identify unique PRs and Boards
+            const prs = new Set();
+            const boards = new Set();
+
+            rows.forEach(row => {
+                if (row.cells && row.cells.length > 2) {
+                    const prCellText = row.cells[1].innerText.split('\n').join('').split(':')[0]; // Extract PR Number
+                    const boardCellText = row.cells[2].innerText.split('\n').join('').split(':')[0]; // Extract Board Name
+                    
+                    if (prCellText) prs.add(prCellText);
+                    if (boardCellText) boards.add(boardCellText);
+                }
+            });
+
+            // Setup PR Filter Dropdown
+            const prHeader = document.getElementById('filter-pr');
+            const prSelect = createSelect('Filter PR...', prs, false);
+            prHeader.innerHTML = '<div class="mb-1">Pull Request</div>';
+            prHeader.appendChild(prSelect);
+
+            // Setup Board Filter Dropdown
+            const boardHeader = document.getElementById('filter-board');
+            const boardSelect = createSelect('Filter Board...', boards, true);
+            boardHeader.innerHTML = '<div class="mb-1">Board / Config</div>';
+            boardHeader.appendChild(boardSelect);
+
+            // Add Event Listeners
+            prSelect.addEventListener('change', () => filterRows(rows, prSelect.value, boardSelect.value));
+            boardSelect.addEventListener('change', () => filterRows(rows, prSelect.value, boardSelect.value));
+        }
+
+        function createSelect(placeholder, values, ascending) {
+            const select = document.createElement('select');
+            select.className = 'filter-select';
+            
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'all';
+            defaultOption.innerText = placeholder;
+            select.appendChild(defaultOption);
+
+            // Sort by PR Number in descending order and Boards alphabetically
+            Array.from(values).sort((a, b) => {
+                if (ascending) { return a.localeCompare(b, undefined, { numeric: true }); }
+                else { return b.localeCompare(a, undefined, { numeric: true }); }
+            }).forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.innerText = val;
+                select.appendChild(opt);
+            });
+
+            return select;
+        }
+
+        function filterRows(rows, prValue, boardValue) {
+            rows.forEach(row => {
+                if (row.cells && row.cells.length > 2) {
+                    const rowPr = row.cells[1].innerText.split('\n').join('').split(':')[0]; // Extract PR Number
+                    const rowBoard = row.cells[2].innerText.split('\n').join('').split(':')[0]; // Extract Board Name
+
+                    const matchesPr = prValue === 'all' || rowPr === prValue;
+                    const matchesBoard = boardValue === 'all' || rowBoard === boardValue;
+
+                    if (matchesPr && matchesBoard) {
+                        row.classList.remove('hidden');
+                        row.style.opacity = '1';
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                }
+            });
+        }
     </script>
+
 </body>
 </html>
 "#
