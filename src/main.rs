@@ -145,7 +145,10 @@ fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
             TableRow::new()
                 .with_attributes([("class", "bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-semibold")])
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 w-32")])
+                    .with_attributes([
+                        ("id", "filter-timestamp"),
+                        ("class", "px-6 py-4 w-32")
+                    ])
                     .with_raw("Timestamp")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
@@ -163,7 +166,10 @@ fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
                     .with_raw("Board / Config")
                 )
                 .with_cell(TableCell::new(TableCellType::Header)
-                    .with_attributes([("class", "px-6 py-4 min-w-[400px] w-full")])
+                    .with_attributes([
+                        ("id", "filter-error-warning"),
+                        ("class", "px-6 py-4 min-w-[400px] w-full")
+                    ])
                     .with_raw("Error / Warning")
                 )
             )
@@ -199,9 +205,9 @@ fn render_job_pr_build(merged_json_array: &Vec<serde_json::Value>) -> Table {
 
         // Render Errors in Red
         let error_warning = 
-            if score == 0.0 { "bg-red-900" }
-            else if score == 1.0 { "bg-green-900" }
-            else { "bg-gray-900" };
+            if score == 0.0 { "error bg-red-900" }
+            else if score == 1.0 { "success bg-green-900" }
+            else { "warning bg-gray-900" };
         let error_warning = error_warning.to_string() + " px-6 py-4 block text-gray-300 rounded-lg p-3 font-mono text-xs leading-relaxed hover:bg-gray-800 transition-colors border border-gray-800 shadow-inner group-hover:border-gray-600 break-all whitespace-normal";
 
         let row = TableRow::new()
@@ -603,34 +609,58 @@ r#"
             const rows = Array.from(tableBody.querySelectorAll('tr'));
             
             // Identify unique PRs and Boards
+            const timestamps = new Set();
             const prs = new Set();
             const boards = new Set();
+            const errorWarnings = new Set();
 
             rows.forEach(row => {
                 if (row.cells && row.cells.length > 2) {
+                    const timestampCellText = row.cells[0].innerText.split('\n')[0]; // Extract Timestamp
                     const prCellText = row.cells[1].innerText.split('\n').join('').split(':')[0]; // Extract PR Number
                     const boardCellText = row.cells[2].innerText.split('\n').join('').split(':')[0]; // Extract Board Name
+                    const errorWarningClass = row.cells[3].classList; // Extract class "error" or "warning"
+                    const errorWarningCellText =
+                        errorWarningClass.contains('error') ? 'Error' :
+                        errorWarningClass.contains('warning') ? 'Warning' :
+                        '(Unknown)';
                     
+                    if (timestampCellText) timestamps.add(timestampCellText);
                     if (prCellText) prs.add(prCellText);
                     if (boardCellText) boards.add(boardCellText);
+                    if (errorWarningCellText) errorWarnings.add(errorWarningCellText);
                 }
             });
 
+            // Setup Timestamp Filter Dropdown
+            const timestampHeader = document.getElementById('filter-timestamp');
+            const timestampSelect = createSelect('Filter...', timestamps, false);
+            timestampHeader.innerHTML = '<div class="mb-1">Timestamp</div>';
+            timestampHeader.appendChild(timestampSelect);
+
             // Setup PR Filter Dropdown
             const prHeader = document.getElementById('filter-pr');
-            const prSelect = createSelect('Filter PR...', prs, false);
+            const prSelect = createSelect('Filter...', prs, false);
             prHeader.innerHTML = '<div class="mb-1">Pull Request</div>';
             prHeader.appendChild(prSelect);
 
             // Setup Board Filter Dropdown
             const boardHeader = document.getElementById('filter-board');
-            const boardSelect = createSelect('Filter Board...', boards, true);
+            const boardSelect = createSelect('Filter...', boards, true);
             boardHeader.innerHTML = '<div class="mb-1">Board / Config</div>';
             boardHeader.appendChild(boardSelect);
 
+            // Setup Error / Warning Filter Dropdown
+            const errorWarningHeader = document.getElementById('filter-error-warning');
+            const errorWarningSelect = createSelect('Filter...', errorWarnings, true);
+            errorWarningHeader.innerHTML = '<div class="mb-1">Error / Warning</div>';
+            errorWarningHeader.appendChild(errorWarningSelect);
+
             // Add Event Listeners
-            prSelect.addEventListener('change', () => filterRows(rows, prSelect.value, boardSelect.value));
-            boardSelect.addEventListener('change', () => filterRows(rows, prSelect.value, boardSelect.value));
+            timestampSelect.addEventListener('change', () => filterRows(rows, timestampSelect.value, prSelect.value, boardSelect.value, errorWarningSelect.value));
+            prSelect.addEventListener('change', () => filterRows(rows, timestampSelect.value, prSelect.value, boardSelect.value, errorWarningSelect.value));
+            boardSelect.addEventListener('change', () => filterRows(rows, timestampSelect.value, prSelect.value, boardSelect.value, errorWarningSelect.value));
+            errorWarningSelect.addEventListener('change', () => filterRows(rows, timestampSelect.value, prSelect.value, boardSelect.value, errorWarningSelect.value));
         }
 
         function createSelect(placeholder, values, ascending) {
@@ -656,16 +686,24 @@ r#"
             return select;
         }
 
-        function filterRows(rows, prValue, boardValue) {
+        function filterRows(rows, timestampValue, prValue, boardValue, errorWarningValue) {
             rows.forEach(row => {
                 if (row.cells && row.cells.length > 2) {
+                    const rowTimestamp = row.cells[0].innerText.split('\n')[0]; // Extract Timestamp
                     const rowPr = row.cells[1].innerText.split('\n').join('').split(':')[0]; // Extract PR Number
                     const rowBoard = row.cells[2].innerText.split('\n').join('').split(':')[0]; // Extract Board Name
+                    const rowErrorWarningClass = row.cells[3].classList; // Extract class "error" or "warning"
+                    const rowErrorWarning =
+                        rowErrorWarningClass.contains('error') ? 'Error' :
+                        rowErrorWarningClass.contains('warning') ? 'Warning' :
+                        '(Unknown)';
 
+                    const matchesTimestamp = timestampValue === 'all' || rowTimestamp === timestampValue;
                     const matchesPr = prValue === 'all' || rowPr === prValue;
                     const matchesBoard = boardValue === 'all' || rowBoard === boardValue;
+                    const matchesErrorWarning = errorWarningValue === 'all' || rowErrorWarning === errorWarningValue;
 
-                    if (matchesPr && matchesBoard) {
+                    if (matchesTimestamp && matchesPr && matchesBoard && matchesErrorWarning) {
                         row.classList.remove('hidden');
                         row.style.opacity = '1';
                     } else {
