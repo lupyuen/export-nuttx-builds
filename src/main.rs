@@ -98,6 +98,15 @@ fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
                 }
             };
 
+            // Stop iterating when Job Timestamp is Older than 7 Days
+            let job_pr_json: serde_json::Value = serde_json::from_str(&job_pr).unwrap();
+            let timestamp = job_pr_json["job_startedAt"].as_str().unwrap();
+            let timestamp = chrono::DateTime::parse_from_rfc3339(timestamp).unwrap();
+            if timestamp < chrono::Utc::now() - chrono::Duration::days(7) {
+                println!("Build is too old. Stopping iteration for folder {folder}");
+                break;
+            }
+
             // Generate the Merged Job-PR-Build JSON for each Run ID:
             // Iterate through all Build JSON files in the folder
             // Like ../nuttx-github-jobs/error/23712816820/xtensa-03:lckfb-szpi-esp32s3:uvc.json
@@ -122,8 +131,6 @@ fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
                 // Add the Merged JSON into a JSON Array
                 let merged_json_value: serde_json::Value = serde_json::from_str(&merged_json).unwrap();
                 merged_json_array.push(merged_json_value.clone());
-
-                // TODO: Stop iterating when Timestamp is Older than 5 Days
             }
         }
     }
