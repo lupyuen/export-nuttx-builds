@@ -102,7 +102,7 @@ fn merge_job_pr_with_build() -> Vec<serde_json::Value> {
             let job_pr_json: serde_json::Value = serde_json::from_str(&job_pr).unwrap();
             let timestamp = job_pr_json["job_startedAt"].as_str().unwrap();
             let timestamp = chrono::DateTime::parse_from_rfc3339(timestamp).unwrap();
-            if timestamp < chrono::Utc::now() - chrono::Duration::days(14) {
+            if timestamp < chrono::Utc::now() - chrono::Duration::days(28) {
                 println!("Build is too old. Stopping iteration for folder {folder}");
                 break;
             }
