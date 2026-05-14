@@ -49,7 +49,7 @@ while true; do
   git commit --all --message="Updated Build Logs and HTML by \`export-nuttx-builds\`" && git push
   popd
 
-  ## Wait a while so we don't hit GitHub API rate limits
-  sleep 60
+  ## Wait 7 mins to allow GitHub Docs to completely publish the HTML. Otherwise it will be cancelled by the next job.
+  sleep 420
 
 done
